@@ -202,10 +202,8 @@ def get_dashboard_stats():
         terrain_dist["Hilly"] = hilly
         terrain_dist["Mountainous"] = mount
     
-    # Active Vehicles (mocked based on prediction history)
+    # Active Vehicles (calculated based on prediction history)
     active_vehicles = len(set([h.get("vehicle_id", "v1") for h in prediction_history]))
-    if active_vehicles == 0:
-        active_vehicles = random.randint(45, 120)
         
     # Heatmap data (downsampled train features)
     heatmap = []
