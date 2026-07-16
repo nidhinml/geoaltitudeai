@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, useMapEvents, ZoomControl, GeoJSON } from 'react-leaflet';
 import L from 'leaflet';
 import { 
-  Activity, Play, Undo2, Map as MapIcon, Layers, Car, Ruler, Search, Plus, X, AlertTriangle, TrendingUp, TrendingDown, GripHorizontal
+  Activity, Play, Undo2, Map as MapIcon, Layers, Car, Ruler, Search, Plus, X, AlertTriangle, TrendingUp, TrendingDown, GripHorizontal, Eye, EyeOff, Info
 } from 'lucide-react';
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
 import { point } from '@turf/helpers';
@@ -60,6 +60,9 @@ export default function GradientAnalysis() {
   const [routingMode, setRoutingMode] = useState<'manual' | 'auto'>('manual');
   const [keralaGeoJSON, setKeralaGeoJSON] = useState<any>(null);
   const [searchLocations, setSearchLocations] = useState<string[]>(['', '']);
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [showMapTutorial, setShowMapTutorial] = useState(false);
+  const [showUserGuide, setShowUserGuide] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -425,7 +428,131 @@ export default function GradientAnalysis() {
           <h2 className="text-2xl font-black text-white flex items-center gap-2">
             <Ruler className="w-6 h-6 text-[#f97316]" /> Gradient Analysis Report
           </h2>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setShowUserGuide(!showUserGuide)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-[#161D30] hover:bg-[#1F293D] text-[#9CA3AF] hover:text-white text-xs font-bold rounded-lg border border-[#1F293D] transition-colors"
+            >
+              <Info className="w-4 h-4" />
+              {showUserGuide ? 'Hide Guide' : 'User Guide'}
+            </button>
+            <button 
+              onClick={() => setShowMapTutorial(!showMapTutorial)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-[#161D30] hover:bg-[#1F293D] text-[#9CA3AF] hover:text-white text-xs font-bold rounded-lg border border-[#1F293D] transition-colors"
+            >
+              {showMapTutorial ? <EyeOff className="w-4 h-4" /> : <MapIcon className="w-4 h-4" />}
+              {showMapTutorial ? 'Hide Routing' : 'Routing Tech'}
+            </button>
+            <button 
+              onClick={() => setShowTutorial(!showTutorial)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-[#161D30] hover:bg-[#1F293D] text-[#9CA3AF] hover:text-white text-xs font-bold rounded-lg border border-[#1F293D] transition-colors"
+            >
+              {showTutorial ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              {showTutorial ? 'Hide AI Math' : 'How AI Works'}
+            </button>
+          </div>
         </div>
+
+        {/* USER GUIDE */}
+        {showUserGuide && (
+        <div className="glass-panel p-5 rounded-2xl border border-[#1F293D] mb-6 bg-[#0B0F19]">
+          <h3 className="text-white font-bold mb-3 flex items-center gap-2">
+            <Info className="w-4 h-4 text-[#22c55e]" /> How to Use This Page
+          </h3>
+          <ol className="list-decimal list-inside space-y-2 text-sm text-[#9CA3AF]">
+            <li><strong>Define a Route:</strong> Click anywhere on the map to drop a Start point, then click again for an End point. You can add as many waypoints as you need.</li>
+            <li><strong>Auto-Routing vs Manual:</strong> Use the "Auto Route" toggle to snap your points to physical roads via OSRM, or "Manual Line" to draw straight point-to-point lines (useful for pipelines or off-road).</li>
+            <li><strong>Analyze:</strong> Click the <strong className="text-[#3b82f6]">Generate</strong> button below the map.</li>
+            <li><strong>Review Report:</strong> The system will chunk your route into 500m segments, classifying each section as flat, uphill, steep, or dangerous based on the calculated gradient %.</li>
+          </ol>
+        </div>
+        )}
+
+        {/* MAP & ROUTING ARCHITECTURE */}
+        {showMapTutorial && (
+        <div className="glass-panel p-5 rounded-2xl border border-[#1F293D] mb-6 bg-[#0B0F19]">
+          <h3 className="text-white font-bold mb-3 flex items-center gap-2">
+            <MapIcon className="w-4 h-4 text-[#3b82f6]" /> Map & Routing Architecture
+          </h3>
+          <div className="flex flex-col xl:flex-row gap-6 items-center">
+            {/* Diagram */}
+            <div className="w-full xl:w-1/3 bg-[#161D30] rounded-xl border border-[#1F293D] p-4 flex items-center justify-center relative overflow-hidden h-32">
+              <svg viewBox="0 0 200 100" className="w-full h-full">
+                <rect x="20" y="20" width="40" height="60" rx="4" fill="#1F293D" stroke="#3b82f6" strokeWidth="2" />
+                <text x="40" y="52" fill="white" fontSize="10" textAnchor="middle" fontWeight="bold">OSRM</text>
+                
+                <motion.line 
+                  x1="65" y1="50" x2="135" y2="50" stroke="#22c55e" strokeWidth="2" strokeDasharray="4 4"
+                  animate={{ strokeDashoffset: [0, -20] }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                />
+                
+                <rect x="140" y="20" width="40" height="60" rx="4" fill="#1F293D" stroke="#f97316" strokeWidth="2" />
+                <text x="160" y="47" fill="white" fontSize="10" textAnchor="middle" fontWeight="bold">XGBoost</text>
+                <text x="160" y="60" fill="#f97316" fontSize="8" textAnchor="middle">AI API</text>
+              </svg>
+            </div>
+            
+            <div className="w-full xl:w-2/3 space-y-3">
+               <p className="text-[11px] text-[#9CA3AF] leading-relaxed">
+                 <strong className="text-white">Mapping Engine:</strong> We use <strong className="text-[#3b82f6]">React-Leaflet</strong> over OpenStreetMap tiles for lightweight, open-source GIS rendering. 
+               </p>
+               <p className="text-[11px] text-[#9CA3AF] leading-relaxed">
+                 <strong className="text-white">Routing API:</strong> When you enter a Start/End location, the app pings the <strong className="text-[#3b82f6]">OSRM (Open Source Routing Machine) API</strong>. OSRM calculates the fastest driving route and returns an encoded polyline of Lat/Lon coordinates.
+               </p>
+               <p className="text-[11px] text-[#9CA3AF] leading-relaxed">
+                 <strong className="text-white">Data Pipeline:</strong> We sample points along this OSRM route and stream them to our Python FastAPI backend. The <strong className="text-[#f97316]">XGBoost Model</strong> predicts the altitude for each point, allowing the frontend to calculate the physical Gradient metrics.
+               </p>
+            </div>
+          </div>
+        </div>
+        )}
+
+        {/* HOW IT WORKS (LAYMAN'S GUIDE) */}
+        {showTutorial && (
+        <div className="glass-panel p-5 rounded-2xl border border-[#1F293D] mb-6 bg-[#0B0F19]">
+          <h3 className="text-white font-bold mb-3 flex items-center gap-2">
+            <Ruler className="w-4 h-4 text-[#3b82f6]" /> How it Works (AI & Physics Model)
+          </h3>
+          
+          <div className="flex flex-col xl:flex-row gap-6 items-center">
+            {/* Animated SVG Pictorial */}
+            <div className="w-full xl:w-1/3 bg-[#161D30] rounded-xl border border-[#1F293D] p-4 flex items-center justify-center relative overflow-hidden h-32">
+              <svg viewBox="0 0 200 100" className="w-full h-full">
+                <path d="M 10 80 L 150 20" stroke="#1F293D" strokeWidth="2" strokeDasharray="4 4" fill="none" />
+                <path d="M 10 80 L 150 80" stroke="#22c55e" strokeWidth="2" fill="none" />
+                <path d="M 150 80 L 150 20" stroke="#ef4444" strokeWidth="2" fill="none" />
+                
+                <text x="70" y="95" fill="#22c55e" fontSize="10" fontWeight="bold">Run (Distance)</text>
+                <text x="155" y="55" fill="#ef4444" fontSize="10" fontWeight="bold">Rise (Altitude)</text>
+                
+                <motion.g
+                  animate={{ x: [0, 140], y: [0, -60] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                >
+                  <rect x="0" y="70" width="16" height="10" fill="#3b82f6" rx="2" transform="rotate(-23 10 80)" />
+                  <circle cx="5" cy="80" r="3" fill="white" transform="rotate(-23 10 80)" />
+                  <circle cx="15" cy="80" r="3" fill="white" transform="rotate(-23 10 80)" />
+                </motion.g>
+              </svg>
+            </div>
+            
+            <div className="w-full xl:w-2/3 space-y-3">
+               <p className="text-[11px] text-[#9CA3AF] leading-relaxed">
+                 <strong className="text-white">The Math (Trigonometric Gradient):</strong> To calculate the steepness of any road, the AI combines two technical formulas:
+               </p>
+               <div className="bg-[#161D30] p-2 rounded border border-[#1F293D] font-mono text-[10px] text-[#3b82f6] space-y-1">
+                 <p>1. Horizontal Dist = Haversine(Lat₁, Lon₁, Lat₂, Lon₂)</p>
+                 <p>2. Vertical Rise = XGBoost_Predict(Alt₂) - XGBoost_Predict(Alt₁)</p>
+                 <p className="text-[#f97316]">3. Gradient (%) = (Vertical Rise / Horizontal Dist) × 100</p>
+               </div>
+               <p className="text-[11px] text-[#9CA3AF] leading-relaxed">
+                 <strong className="text-white">Why we take it:</strong> By mathematically dividing the Vertical Rise by the Horizontal Run, the system perfectly maps out which segments of your route are flat (safe), and which are dangerously steep mountainsides.
+               </p>
+            </div>
+          </div>
+        </div>
+        )}
+
 
         {!stats ? (
           <div className="glass-panel h-64 rounded-2xl border border-[#1F293D] flex flex-col items-center justify-center text-center p-10 bg-[#0B0F19]">
@@ -438,12 +565,39 @@ export default function GradientAnalysis() {
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
               
               <div className="grid grid-cols-2 gap-4">
-                <div className="glass-panel p-4 rounded-xl border border-[#1F293D] bg-gradient-to-br from-[#ef4444]/10 to-transparent">
-                  <p className="text-[10px] text-[#ef4444] font-bold uppercase tracking-widest mb-1 flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Max Steepness</p>
+                <div className="glass-panel p-4 rounded-xl border border-[#1F293D] bg-gradient-to-br from-[#ef4444]/10 to-transparent relative group">
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="text-[10px] text-[#ef4444] font-bold uppercase tracking-widest flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Max Steepness</p>
+                    <Info className="w-3 h-3 text-[#ef4444]/70 cursor-help" />
+                    <div className="absolute bottom-full left-0 mb-2 w-72 p-3 bg-[#111827] border border-[#1F293D] rounded-lg shadow-2xl text-xs text-gray-300 opacity-0 group-hover:opacity-100 pointer-events-none transition-all z-50">
+                      <strong className="text-[#ef4444] block mb-2">Max Gradient (Steepness)</strong>
+                      <p className="mb-2">The steepest single section of the route, indicating the most extreme incline a vehicle would face.</p>
+                      <svg viewBox="0 0 200 80" className="w-full h-20 bg-[#0B0F19] rounded border border-[#1F293D] mt-2">
+                        <path d="M 10 70 Q 40 70, 70 50 T 130 20 T 190 60" stroke="#9CA3AF" strokeWidth="2" fill="none" />
+                        <line x1="80" y1="46" x2="110" y2="28" stroke="#ef4444" strokeWidth="4" />
+                        <circle cx="95" cy="37" r="15" stroke="#ef4444" strokeWidth="1" fill="none" strokeDasharray="2 2" />
+                        <text x="95" y="15" fill="#ef4444" fontSize="10" textAnchor="middle">Steepest Peak</text>
+                      </svg>
+                    </div>
+                  </div>
                   <p className="text-2xl font-black text-white">{stats.maxGradient} <span className="text-sm font-normal text-[#9CA3AF]">%</span></p>
                 </div>
-                <div className="glass-panel p-4 rounded-xl border border-[#1F293D] bg-gradient-to-br from-[#3b82f6]/10 to-transparent">
-                  <p className="text-[10px] text-[#3b82f6] font-bold uppercase tracking-widest mb-1 flex items-center gap-1"><Activity className="w-3 h-3" /> Average Gradient</p>
+                <div className="glass-panel p-4 rounded-xl border border-[#1F293D] bg-gradient-to-br from-[#3b82f6]/10 to-transparent relative group">
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="text-[10px] text-[#3b82f6] font-bold uppercase tracking-widest flex items-center gap-1"><Activity className="w-3 h-3" /> Average Gradient</p>
+                    <Info className="w-3 h-3 text-[#3b82f6]/70 cursor-help" />
+                    <div className="absolute bottom-full left-0 mb-2 w-72 p-3 bg-[#111827] border border-[#1F293D] rounded-lg shadow-2xl text-xs text-gray-300 opacity-0 group-hover:opacity-100 pointer-events-none transition-all z-50">
+                      <strong className="text-[#3b82f6] block mb-2">Average Gradient</strong>
+                      <p className="mb-2">The overall steepness of the entire route, calculated as total elevation change over total distance.</p>
+                      <svg viewBox="0 0 200 80" className="w-full h-20 bg-[#0B0F19] rounded border border-[#1F293D] mt-2">
+                        <path d="M 20 60 L 180 20" stroke="#3b82f6" strokeWidth="2" strokeDasharray="4 4" fill="none" />
+                        <path d="M 20 60 Q 80 80, 120 40 T 180 20" stroke="#9CA3AF" strokeWidth="1" fill="none" opacity="0.5" />
+                        <circle cx="20" cy="60" r="4" fill="#22c55e" />
+                        <circle cx="180" cy="20" r="4" fill="#ef4444" />
+                        <text x="100" y="30" fill="#3b82f6" fontSize="10" textAnchor="middle" transform="rotate(-11 100 40)">Mean Slope</text>
+                      </svg>
+                    </div>
+                  </div>
                   <p className="text-2xl font-black text-white">{stats.avgGradient} <span className="text-sm font-normal text-[#9CA3AF]">%</span></p>
                 </div>
               </div>

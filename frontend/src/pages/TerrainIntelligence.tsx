@@ -6,7 +6,7 @@ import L from 'leaflet';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Waves, TreePine, Trees, Tent, Mountain, MountainSnow, 
-  MapPin, Target, Activity, Compass, Info, Loader2
+  MapPin, Target, Activity, Compass, Info, Loader2, Eye, EyeOff, Map as MapIcon
 } from 'lucide-react';
 import { useMutation } from '@tanstack/react-query';
 
@@ -40,6 +40,9 @@ const customIcon = new L.Icon({
 
 export default function TerrainIntelligence() {
   const [selectedLocation, setSelectedLocation] = useState<{lat: number, lon: number} | null>(null);
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [showMapTutorial, setShowMapTutorial] = useState(false);
+  const [showUserGuide, setShowUserGuide] = useState(false);
   const [keralaGeoJSON, setKeralaGeoJSON] = useState<any>(null);
 
   useEffect(() => {
@@ -130,9 +133,134 @@ export default function TerrainIntelligence() {
 
       {/* RIGHT PANE: Intelligence Dashboard */}
       <div className="flex-1 flex flex-col gap-4 overflow-y-auto pr-2 custom-scrollbar">
-        <h2 className="text-2xl font-black text-white flex items-center gap-2 mb-2">
-          <Mountain className="w-6 h-6 text-[#22c55e]" /> Terrain Intelligence
-        </h2>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-2xl font-black text-white flex items-center gap-2">
+            <Mountain className="w-6 h-6 text-[#22c55e]" /> Terrain Intelligence
+          </h2>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setShowUserGuide(!showUserGuide)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-[#161D30] hover:bg-[#1F293D] text-[#9CA3AF] hover:text-white text-xs font-bold rounded-lg border border-[#1F293D] transition-colors"
+            >
+              <Info className="w-4 h-4" />
+              {showUserGuide ? 'Hide Guide' : 'User Guide'}
+            </button>
+            <button 
+              onClick={() => setShowMapTutorial(!showMapTutorial)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-[#161D30] hover:bg-[#1F293D] text-[#9CA3AF] hover:text-white text-xs font-bold rounded-lg border border-[#1F293D] transition-colors"
+            >
+              {showMapTutorial ? <EyeOff className="w-4 h-4" /> : <MapIcon className="w-4 h-4" />}
+              {showMapTutorial ? 'Hide Scanning' : 'Scanning Tech'}
+            </button>
+            <button 
+              onClick={() => setShowTutorial(!showTutorial)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-[#161D30] hover:bg-[#1F293D] text-[#9CA3AF] hover:text-white text-xs font-bold rounded-lg border border-[#1F293D] transition-colors"
+            >
+              {showTutorial ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              {showTutorial ? 'Hide AI Math' : 'How AI Works'}
+            </button>
+          </div>
+        </div>
+
+        {/* USER GUIDE */}
+        {showUserGuide && (
+        <div className="glass-panel p-5 rounded-2xl border border-[#1F293D] mb-4 bg-[#0B0F19]">
+          <h3 className="text-white font-bold mb-3 flex items-center gap-2">
+            <Info className="w-4 h-4 text-[#22c55e]" /> How to Use This Page
+          </h3>
+          <ol className="list-decimal list-inside space-y-2 text-sm text-[#9CA3AF]">
+            <li><strong>Analyze Terrain:</strong> Click anywhere on the map to trigger a Terrain Intelligence scan.</li>
+            <li><strong>Data Extraction:</strong> The system will process the surrounding geospatial data to generate a centralized altitude profile.</li>
+            <li><strong>Review Geography:</strong> The AI will instantly classify the overarching macro-geography (e.g. is this a Mountain Peak, a Valley floor, or a Coastal Plain?).</li>
+            <li><strong>Live Telemetry:</strong> An animated visualization will plot the topographic structure in real-time, providing an immediate understanding of the physical environment.</li>
+          </ol>
+        </div>
+        )}
+
+        {/* MAP & SCANNING ARCHITECTURE */}
+        {showMapTutorial && (
+        <div className="glass-panel p-5 rounded-2xl border border-[#1F293D] mb-4 bg-[#0B0F19]">
+          <h3 className="text-white font-bold mb-3 flex items-center gap-2">
+            <MapIcon className="w-4 h-4 text-[#3b82f6]" /> Map & Scanning Architecture
+          </h3>
+          <div className="flex flex-col xl:flex-row gap-6 items-center">
+            {/* Diagram */}
+            <div className="w-full xl:w-1/3 bg-[#161D30] rounded-xl border border-[#1F293D] p-4 flex items-center justify-center relative overflow-hidden h-32">
+              <svg viewBox="0 0 200 100" className="w-full h-full">
+                <circle cx="40" cy="50" r="20" fill="none" stroke="#3b82f6" strokeWidth="2" strokeDasharray="4 4" />
+                <circle cx="40" cy="50" r="3" fill="#3b82f6" />
+                <text x="40" y="85" fill="white" fontSize="10" textAnchor="middle" fontWeight="bold">Click Event</text>
+                
+                <motion.line 
+                  x1="65" y1="50" x2="135" y2="50" stroke="#22c55e" strokeWidth="2" strokeDasharray="4 4"
+                  animate={{ strokeDashoffset: [0, -20] }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                />
+                
+                <rect x="140" y="20" width="40" height="60" rx="4" fill="#1F293D" stroke="#f97316" strokeWidth="2" />
+                <text x="160" y="47" fill="white" fontSize="10" textAnchor="middle" fontWeight="bold">XGBoost</text>
+                <text x="160" y="60" fill="#f97316" fontSize="8" textAnchor="middle">AI API</text>
+              </svg>
+            </div>
+            
+            <div className="w-full xl:w-2/3 space-y-3">
+               <p className="text-[11px] text-[#9CA3AF] leading-relaxed">
+                 <strong className="text-white">Mapping Engine:</strong> We use <strong className="text-[#3b82f6]">React-Leaflet</strong> over topographical bounds to render the visual UI.
+               </p>
+               <p className="text-[11px] text-[#9CA3AF] leading-relaxed">
+                 <strong className="text-white">Spatial Grid Sampling:</strong> When you click the map, the app extracts the exact Latitude and Longitude. It then mathematically builds a radial grid surrounding this central point.
+               </p>
+               <p className="text-[11px] text-[#9CA3AF] leading-relaxed">
+                 <strong className="text-white">Data Pipeline:</strong> The matrix of coordinates is passed into our FastAPI <strong className="text-[#f97316]">XGBoost Model</strong> to instantly classify the geography (e.g. Mountain, Valley, Plain) by predicting and comparing the altitudes.
+               </p>
+            </div>
+          </div>
+        </div>
+        )}
+
+        {/* HOW IT WORKS (LAYMAN'S GUIDE) */}
+        {showTutorial && (
+        <div className="glass-panel p-5 rounded-2xl border border-[#1F293D] mb-4 bg-[#0B0F19]">
+          <h3 className="text-white font-bold mb-3 flex items-center gap-2">
+            <Mountain className="w-4 h-4 text-[#22c55e]" /> How it Works (AI & Physics Model)
+          </h3>
+          
+          <div className="flex flex-col xl:flex-row gap-6 items-center">
+            {/* Animated SVG Pictorial */}
+            <div className="w-full xl:w-1/3 bg-[#161D30] rounded-xl border border-[#1F293D] p-4 flex items-center justify-center relative overflow-hidden h-32">
+              <svg viewBox="0 0 200 100" className="w-full h-full">
+                {/* 3D Wireframe Mesh */}
+                <path d="M 10 70 L 50 30 L 100 60 L 150 20 L 190 80" fill="none" stroke="#3b82f6" strokeWidth="1" strokeDasharray="2 2" />
+                <path d="M 10 90 L 50 50 L 100 80 L 150 40 L 190 100" fill="none" stroke="#3b82f6" strokeWidth="1" strokeDasharray="2 2" />
+                <path d="M 50 30 L 50 50 M 100 60 L 100 80 M 150 20 L 150 40" fill="none" stroke="#3b82f6" strokeWidth="1" strokeDasharray="2 2" />
+                
+                {/* Scanner line */}
+                <motion.rect 
+                  x="0" y="0" width="2" height="100" fill="#22c55e" 
+                  animate={{ x: [0, 200] }} 
+                  transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                />
+                
+                <circle cx="150" cy="20" r="4" fill="#ef4444" />
+                <text x="120" y="15" fill="#ef4444" fontSize="10" fontWeight="bold">Peak Found</text>
+              </svg>
+            </div>
+            
+            <div className="w-full xl:w-2/3 space-y-3">
+               <p className="text-[11px] text-[#9CA3AF] leading-relaxed">
+                 <strong className="text-white">The Math (Spatial Autocorrelation & Moran's I):</strong> The AI doesn't just look at one point. It rapidly scans a massive grid of Latitude and Longitude coordinates around your click, predicting thousands of altitudes to measure spatial dependence:
+               </p>
+               <div className="bg-[#161D30] p-2 rounded border border-[#1F293D] font-mono text-[10px] text-[#22c55e] space-y-1">
+                 <p>I = (N / W) × [ Σ_i Σ_j w_ij(x_i - X̄)(x_j - X̄) / Σ_i (x_i - X̄)² ]</p>
+                 <p className="text-[#9CA3AF]">x = Altitude at coordinate, w = Spatial weight matrix</p>
+               </div>
+               <p className="text-[11px] text-[#9CA3AF] leading-relaxed">
+                 <strong className="text-white">Why we take it:</strong> By comparing all these altitudes simultaneously using this mathematical theorem, it builds a 3D wireframe mesh. This allows it to classify the "Macro Geography" (e.g., determining if a point is a valley floor, a mountain plateau, or a coastal plain).
+               </p>
+            </div>
+          </div>
+        </div>
+        )}
+
 
         {!selectedLocation ? (
           <div className="flex-1 glass-panel rounded-2xl border border-[#1F293D] flex flex-col items-center justify-center text-center p-10">

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Circle, CircleMarker, Popup, useMapEvents, ZoomControl, GeoJSON, Rectangle } from 'react-leaflet';
 import L from 'leaflet';
 import { 
-  Activity, Map as MapIcon, Layers, Search, ShieldAlert, ShieldCheck, Droplets, Radar, Shield, Trash2, CloudRain
+  Activity, Map as MapIcon, Layers, Search, ShieldAlert, ShieldCheck, Droplets, Radar, Shield, Trash2, CloudRain, Eye, EyeOff, Info
 } from 'lucide-react';
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
 import { point } from '@turf/helpers';
@@ -24,6 +24,9 @@ export default function FloodRiskAnalysis() {
   const [loading, setLoading] = useState(false);
   const [mapStyle, setMapStyle] = useState<'street' | 'satellite'>('satellite');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [showMapTutorial, setShowMapTutorial] = useState(false);
+  const [showUserGuide, setShowUserGuide] = useState(false);
   const [keralaGeoJSON, setKeralaGeoJSON] = useState<any>(null);
   const [mapInstance, setMapInstance] = useState<L.Map | null>(null);
 
@@ -318,7 +321,133 @@ export default function FloodRiskAnalysis() {
           <h2 className="text-2xl font-black text-white flex items-center gap-2">
             <Droplets className="w-6 h-6 text-[#3b82f6]" /> Risk Registry
           </h2>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setShowUserGuide(!showUserGuide)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-[#161D30] hover:bg-[#1F293D] text-[#9CA3AF] hover:text-white text-xs font-bold rounded-lg border border-[#1F293D] transition-colors"
+            >
+              <Info className="w-4 h-4" />
+              {showUserGuide ? 'Hide Guide' : 'User Guide'}
+            </button>
+            <button 
+              onClick={() => setShowMapTutorial(!showMapTutorial)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-[#161D30] hover:bg-[#1F293D] text-[#9CA3AF] hover:text-white text-xs font-bold rounded-lg border border-[#1F293D] transition-colors"
+            >
+              {showMapTutorial ? <EyeOff className="w-4 h-4" /> : <MapIcon className="w-4 h-4" />}
+              {showMapTutorial ? 'Hide Scanning' : 'Scanning Tech'}
+            </button>
+            <button 
+              onClick={() => setShowTutorial(!showTutorial)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-[#161D30] hover:bg-[#1F293D] text-[#9CA3AF] hover:text-white text-xs font-bold rounded-lg border border-[#1F293D] transition-colors"
+            >
+              {showTutorial ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              {showTutorial ? 'Hide AI Math' : 'How AI Works'}
+            </button>
+          </div>
         </div>
+
+        {/* USER GUIDE */}
+        {showUserGuide && (
+        <div className="glass-panel p-5 rounded-2xl border border-[#1F293D] mb-6 bg-[#0B0F19]">
+          <h3 className="text-white font-bold mb-3 flex items-center gap-2">
+            <Info className="w-4 h-4 text-[#22c55e]" /> How to Use This Page
+          </h3>
+          <ol className="list-decimal list-inside space-y-2 text-sm text-[#9CA3AF]">
+            <li><strong>Analyze an Area:</strong> Click anywhere on the map to trigger a Flood Risk scan.</li>
+            <li><strong>Data Extraction:</strong> The system will drop a marker, then mathematically analyze the surrounding topography to build a local depression matrix.</li>
+            <li><strong>Review Alerts:</strong> If the area is a geographic "sink" (lower than its surroundings) or near sea level, it will be flagged High Risk and added to your registry.</li>
+            <li><strong>View Heatmaps:</strong> The map will draw bounding boxes and circles to highlight the specific impact zones around your clicked coordinate.</li>
+          </ol>
+        </div>
+        )}
+
+        {/* MAP & SCANNING ARCHITECTURE */}
+        {showMapTutorial && (
+        <div className="glass-panel p-5 rounded-2xl border border-[#1F293D] mb-6 bg-[#0B0F19]">
+          <h3 className="text-white font-bold mb-3 flex items-center gap-2">
+            <MapIcon className="w-4 h-4 text-[#3b82f6]" /> Map & Scanning Architecture
+          </h3>
+          <div className="flex flex-col xl:flex-row gap-6 items-center">
+            {/* Diagram */}
+            <div className="w-full xl:w-1/3 bg-[#161D30] rounded-xl border border-[#1F293D] p-4 flex items-center justify-center relative overflow-hidden h-32">
+              <svg viewBox="0 0 200 100" className="w-full h-full">
+                <circle cx="40" cy="50" r="20" fill="none" stroke="#3b82f6" strokeWidth="2" strokeDasharray="4 4" />
+                <circle cx="40" cy="50" r="3" fill="#3b82f6" />
+                <text x="40" y="85" fill="white" fontSize="10" textAnchor="middle" fontWeight="bold">Click Event</text>
+                
+                <motion.line 
+                  x1="65" y1="50" x2="135" y2="50" stroke="#22c55e" strokeWidth="2" strokeDasharray="4 4"
+                  animate={{ strokeDashoffset: [0, -20] }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                />
+                
+                <rect x="140" y="20" width="40" height="60" rx="4" fill="#1F293D" stroke="#f97316" strokeWidth="2" />
+                <text x="160" y="47" fill="white" fontSize="10" textAnchor="middle" fontWeight="bold">XGBoost</text>
+                <text x="160" y="60" fill="#f97316" fontSize="8" textAnchor="middle">AI API</text>
+              </svg>
+            </div>
+            
+            <div className="w-full xl:w-2/3 space-y-3">
+               <p className="text-[11px] text-[#9CA3AF] leading-relaxed">
+                 <strong className="text-white">Mapping Engine:</strong> We use <strong className="text-[#3b82f6]">React-Leaflet</strong> over satellite tiles to provide a visual topographic base layer.
+               </p>
+               <p className="text-[11px] text-[#9CA3AF] leading-relaxed">
+                 <strong className="text-white">Spatial Grid Sampling:</strong> When you click the map, the app generates a localized bounding box. We extract a dense grid of Lat/Lon coordinates from this box to map out the surrounding area.
+               </p>
+               <p className="text-[11px] text-[#9CA3AF] leading-relaxed">
+                 <strong className="text-white">Data Pipeline:</strong> This matrix of points is sent to our Python FastAPI backend. The <strong className="text-[#f97316]">XGBoost Model</strong> predicts the altitude for every coordinate, allowing the frontend to generate flood risk heatmaps and identify topographic sinks.
+               </p>
+            </div>
+          </div>
+        </div>
+        )}
+
+        {/* HOW IT WORKS (LAYMAN'S GUIDE) */}
+        {showTutorial && (
+        <div className="glass-panel p-5 rounded-2xl border border-[#1F293D] mb-6 bg-[#0B0F19]">
+          <h3 className="text-white font-bold mb-3 flex items-center gap-2">
+            <Droplets className="w-4 h-4 text-[#3b82f6]" /> How it Works (AI & Physics Model)
+          </h3>
+          
+          <div className="flex flex-col xl:flex-row gap-6 items-center">
+            {/* Animated SVG Pictorial */}
+            <div className="w-full xl:w-1/3 bg-[#161D30] rounded-xl border border-[#1F293D] p-4 flex items-center justify-center relative overflow-hidden h-32">
+              <svg viewBox="0 0 200 100" className="w-full h-full">
+                {/* Terrain */}
+                <path d="M 0 50 Q 50 10 100 80 T 200 40 L 200 100 L 0 100 Z" fill="#1F293D" />
+                {/* Rain */}
+                <motion.g animate={{ y: [0, 40], opacity: [0, 1, 0] }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
+                  <line x1="50" y1="0" x2="45" y2="10" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" />
+                  <line x1="150" y1="10" x2="145" y2="20" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" />
+                  <line x1="100" y1="-10" x2="95" y2="0" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" />
+                </motion.g>
+                {/* Water pooling in depression */}
+                <motion.path 
+                  initial={{ d: "M 70 80 Q 100 80 130 80 Z" }}
+                  animate={{ d: "M 60 70 Q 100 75 140 70 L 130 80 Q 100 85 70 80 Z" }}
+                  transition={{ duration: 2, repeat: Infinity, repeatType: "reverse" }}
+                  fill="#ef4444" opacity="0.8"
+                />
+                <text x="75" y="60" fill="#ef4444" fontSize="10" fontWeight="bold">Flood Sink</text>
+                <text x="10" y="30" fill="#22c55e" fontSize="10" fontWeight="bold">Safe Peak</text>
+              </svg>
+            </div>
+            
+             <div className="w-full xl:w-2/3 space-y-3">
+               <p className="text-[11px] text-[#9CA3AF] leading-relaxed">
+                 <strong className="text-white">The Math (Topographic Depression Analysis):</strong> Water always flows downhill. The AI scans the Lat/Lons in an area to build a 3D grid of altitudes. It then runs a sink-detection algorithm:
+               </p>
+               <div className="bg-[#161D30] p-2 rounded border border-[#1F293D] font-mono text-[10px] text-[#3b82f6] space-y-1">
+                 <p>Sink Condition: Alt(x,y) &lt; min(Alt(neighbors))</p>
+                 <p className="text-[#9CA3AF]">If true, the point is a localized topological depression.</p>
+               </div>
+               <p className="text-[11px] text-[#9CA3AF] leading-relaxed">
+                 <strong className="text-white">Why we take it:</strong> Because water has nowhere to flow out of a sink, these lowest-altitude coordinates are flagged as "Red Zones" (highly vulnerable to flooding). Urban planners use this to avoid building critical infrastructure in invisible geographic bowls.
+               </p>
+            </div>
+          </div>
+        </div>
+        )}
+
 
         {markers.length === 0 ? (
           <div className="glass-panel h-64 rounded-2xl border border-[#1F293D] flex flex-col items-center justify-center text-center p-10 bg-[#0B0F19]">

@@ -1,6 +1,17 @@
 import React, { useState } from 'react';
-import { Sliders, Sparkles, AlertCircle, RefreshCw, BarChart2 } from 'lucide-react';
+import { Sliders, Sparkles, AlertCircle, RefreshCw, BarChart2, Info } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+
+const FeatureTooltip = ({ title, explanation }: { title: string, explanation: string }) => (
+  <div className="relative group flex items-center" onClick={(e) => e.preventDefault()}>
+    <Info className="w-3.5 h-3.5 text-[#9CA3AF] group-hover:text-[#3b82f6] transition-colors cursor-help" />
+    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block w-[260px] p-3 bg-[#161D30] border border-[#3b82f6]/50 rounded-lg shadow-[0_10px_40px_rgba(0,0,0,0.8)] text-xs text-[#9CA3AF] z-[100] pointer-events-none">
+      <strong className="text-white block mb-1">{title}</strong> 
+      <span className="leading-relaxed">{explanation}</span>
+      <div className="absolute top-full left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-[#3b82f6]/50"></div>
+    </div>
+  </div>
+);
 
 export default function DataCleaning() {
   const [removeOutliers, setRemoveOutliers] = useState(true);
@@ -58,7 +69,7 @@ export default function DataCleaning() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Left Side: Parameters Settings */}
-        <div className="lg:col-span-1 glass-panel p-6 rounded-xl border border-[#1F293D] flex flex-col gap-6">
+        <div className="lg:col-span-1 glass-panel p-6 rounded-xl border border-[#1F293D] flex flex-col gap-6 min-w-0">
           <div className="flex items-center gap-3">
             <Sliders className="w-5 h-5 text-[#22c55e]" />
             <h3 className="text-lg font-bold text-white">Cleaning Options</h3>
@@ -69,7 +80,13 @@ export default function DataCleaning() {
             {/* Outlier removal */}
             <div className="space-y-2">
               <label className="flex items-center justify-between text-sm cursor-pointer">
-                <span className="font-semibold text-white">Remove Spatial Outliers</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-white">Remove Spatial Outliers</span>
+                  <FeatureTooltip 
+                    title="Why use this?" 
+                    explanation="GPS reflections (like bouncing off buildings) can cause sudden 5,000m elevation spikes. If not removed, the AI will learn these errors as real terrain gradients." 
+                  />
+                </div>
                 <input 
                   type="checkbox" 
                   checked={removeOutliers}
@@ -83,8 +100,14 @@ export default function DataCleaning() {
             {/* Threshold slider */}
             {removeOutliers && (
               <div className="space-y-2 p-3 bg-black/20 border border-[#1F293D] rounded-lg">
-                <div className="flex justify-between text-xs font-semibold">
-                  <span className="text-[#9CA3AF]">Z-Score Threshold</span>
+                <div className="flex justify-between items-center text-xs font-semibold">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[#9CA3AF]">Z-Score Threshold</span>
+                    <FeatureTooltip 
+                      title="Z-Score Range Explained:"
+                      explanation="3.0 is the default (Three-Sigma Rule), capturing 99.7% of natural terrain variation while dropping extreme GPS glitches. 1.5 is aggressive (for flat roads). 4.0 is conservative (for mountains)."
+                    />
+                  </div>
                   <span className="text-[#22c55e]">{outlierThreshold.toFixed(1)} σ</span>
                 </div>
                 <input 
@@ -105,7 +128,13 @@ export default function DataCleaning() {
 
             {/* Imputation dropdown */}
             <div className="space-y-2">
-              <label className="block text-sm font-semibold text-white">Missing Values Imputation</label>
+              <label className="flex items-center gap-2 text-sm font-semibold text-white">
+                Missing Values Imputation
+                <FeatureTooltip 
+                  title="Why KNN Imputation?" 
+                  explanation="If a GPS coordinate is missing its altitude, dropping the row breaks the route sequence. Spatial KNN looks at the 5 closest geographic points and averages their altitude to fill the gap accurately." 
+                />
+              </label>
               <select 
                 value={imputeMethod}
                 onChange={(e) => setImputeMethod(e.target.value)}
@@ -121,7 +150,13 @@ export default function DataCleaning() {
             {/* Invalid coordinate filter */}
             <div className="space-y-2">
               <label className="flex items-center justify-between text-sm cursor-pointer">
-                <span className="font-semibold text-white">Verify Coordinate Boundaries</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-white">Verify Coordinate Boundaries</span>
+                  <FeatureTooltip 
+                    title="Why use this?" 
+                    explanation="Sensors sometimes reset to [0,0] (Null Island) or return Latitudes > 90. Feeding these impossible planetary coordinates to the model will corrupt its spatial awareness." 
+                  />
+                </div>
                 <input 
                   type="checkbox" 
                   checked={coordinateFilter}
@@ -155,8 +190,8 @@ export default function DataCleaning() {
         </div>
 
         {/* Right Side: Cleaning Results Summary */}
-        <div className="lg:col-span-2 flex flex-col gap-6">
-          <div className="glass-panel p-6 rounded-xl border border-[#1F293D] flex flex-col gap-6 flex-shrink-0">
+        <div className="lg:col-span-2 flex flex-col gap-6 min-w-0">
+          <div className="glass-panel p-6 rounded-xl border border-[#1F293D] flex flex-col gap-6 flex-shrink-0 min-w-0">
             <div className="flex justify-between items-start">
               <div>
                 <h3 className="text-lg font-bold text-white">Cleaning Report</h3>

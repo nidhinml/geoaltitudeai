@@ -92,7 +92,7 @@ export default function Dashboard() {
       {/* 2. Primary KPI Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { title: 'Training Dataset', val: dataset?.rows || 0, label: 'samples', icon: Database, c: 'text-[#3b82f6]', bg: 'bg-[#3b82f6]/10' },
+          { title: 'Training Dataset', val: dataset?.total_records || dataset?.rows || 0, label: 'samples', icon: Database, c: 'text-[#3b82f6]', bg: 'bg-[#3b82f6]/10' },
           { title: 'Model Status', val: model?.is_trained ? 'Active' : 'Offline', label: model?.is_trained ? `R² ${model.r2_score}` : 'Needs Training', icon: Cpu, c: 'text-[#22c55e]', bg: 'bg-[#22c55e]/10', isText: true },
           { title: 'Active Vehicles', val: active_vehicles || 0, label: 'telemetry streams', icon: Navigation, c: 'text-[#f59e0b]', bg: 'bg-[#f59e0b]/10' },
           { title: 'Total Predictions', val: total_predictions || 0, label: 'processed requests', icon: Activity, c: 'text-[#8b5cf6]', bg: 'bg-[#8b5cf6]/10' }

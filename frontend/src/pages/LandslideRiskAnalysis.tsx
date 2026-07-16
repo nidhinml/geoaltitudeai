@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, CircleMarker, Popup, useMapEvents, ZoomControl, GeoJSON } from 'react-leaflet';
 import L from 'leaflet';
 import { 
-  Activity, Map as MapIcon, Layers, Search, ShieldAlert, ShieldCheck, MountainSnow, AlertTriangle, Trash2, Shield, CloudRain
+  Activity, Map as MapIcon, Layers, Search, ShieldAlert, ShieldCheck, MountainSnow, AlertTriangle, Trash2, Shield, CloudRain, Eye, EyeOff, Info
 } from 'lucide-react';
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
 import { point } from '@turf/helpers';
@@ -33,6 +33,9 @@ export default function LandslideRiskAnalysis() {
   const [loading, setLoading] = useState(false);
   const [mapStyle, setMapStyle] = useState<'street' | 'satellite'>('satellite');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [showMapTutorial, setShowMapTutorial] = useState(false);
+  const [showUserGuide, setShowUserGuide] = useState(false);
   const [keralaGeoJSON, setKeralaGeoJSON] = useState<any>(null);
   const [mapInstance, setMapInstance] = useState<L.Map | null>(null);
 
@@ -263,7 +266,133 @@ export default function LandslideRiskAnalysis() {
           <h2 className="text-2xl font-black text-white flex items-center gap-2">
             <MountainSnow className="w-6 h-6 text-[#f97316]" /> Terrain Integrity
           </h2>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setShowUserGuide(!showUserGuide)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-[#161D30] hover:bg-[#1F293D] text-[#9CA3AF] hover:text-white text-xs font-bold rounded-lg border border-[#1F293D] transition-colors"
+            >
+              <Info className="w-4 h-4" />
+              {showUserGuide ? 'Hide Guide' : 'User Guide'}
+            </button>
+            <button 
+              onClick={() => setShowMapTutorial(!showMapTutorial)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-[#161D30] hover:bg-[#1F293D] text-[#9CA3AF] hover:text-white text-xs font-bold rounded-lg border border-[#1F293D] transition-colors"
+            >
+              {showMapTutorial ? <EyeOff className="w-4 h-4" /> : <MapIcon className="w-4 h-4" />}
+              {showMapTutorial ? 'Hide Scanning' : 'Scanning Tech'}
+            </button>
+            <button 
+              onClick={() => setShowTutorial(!showTutorial)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-[#161D30] hover:bg-[#1F293D] text-[#9CA3AF] hover:text-white text-xs font-bold rounded-lg border border-[#1F293D] transition-colors"
+            >
+              {showTutorial ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              {showTutorial ? 'Hide AI Math' : 'How AI Works'}
+            </button>
+          </div>
         </div>
+
+        {/* USER GUIDE */}
+        {showUserGuide && (
+        <div className="glass-panel p-5 rounded-2xl border border-[#1F293D] mb-6 bg-[#0B0F19]">
+          <h3 className="text-white font-bold mb-3 flex items-center gap-2">
+            <Info className="w-4 h-4 text-[#22c55e]" /> How to Use This Page
+          </h3>
+          <ol className="list-decimal list-inside space-y-2 text-sm text-[#9CA3AF]">
+            <li><strong>Analyze an Area:</strong> Click anywhere on the map to trigger a Landslide Risk scan.</li>
+            <li><strong>Data Extraction:</strong> The system will drop a marker, then mathematically analyze the surrounding topography to build a localized 3D surface model.</li>
+            <li><strong>Review Alerts:</strong> If the local gradient (steepness) exceeds the physical Angle of Repose (e.g. &gt;30 degrees), it will be flagged High Risk and added to your registry.</li>
+            <li><strong>View Heatmaps:</strong> The map will draw bounding boxes and circles to highlight the specific dangerous slope zones around your clicked coordinate.</li>
+          </ol>
+        </div>
+        )}
+
+        {/* MAP & SCANNING ARCHITECTURE */}
+        {showMapTutorial && (
+        <div className="glass-panel p-5 rounded-2xl border border-[#1F293D] mb-6 bg-[#0B0F19]">
+          <h3 className="text-white font-bold mb-3 flex items-center gap-2">
+            <MapIcon className="w-4 h-4 text-[#3b82f6]" /> Map & Scanning Architecture
+          </h3>
+          <div className="flex flex-col xl:flex-row gap-6 items-center">
+            {/* Diagram */}
+            <div className="w-full xl:w-1/3 bg-[#161D30] rounded-xl border border-[#1F293D] p-4 flex items-center justify-center relative overflow-hidden h-32">
+              <svg viewBox="0 0 200 100" className="w-full h-full">
+                <circle cx="40" cy="50" r="20" fill="none" stroke="#3b82f6" strokeWidth="2" strokeDasharray="4 4" />
+                <circle cx="40" cy="50" r="3" fill="#3b82f6" />
+                <text x="40" y="85" fill="white" fontSize="10" textAnchor="middle" fontWeight="bold">Click Event</text>
+                
+                <motion.line 
+                  x1="65" y1="50" x2="135" y2="50" stroke="#22c55e" strokeWidth="2" strokeDasharray="4 4"
+                  animate={{ strokeDashoffset: [0, -20] }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                />
+                
+                <rect x="140" y="20" width="40" height="60" rx="4" fill="#1F293D" stroke="#f97316" strokeWidth="2" />
+                <text x="160" y="47" fill="white" fontSize="10" textAnchor="middle" fontWeight="bold">XGBoost</text>
+                <text x="160" y="60" fill="#f97316" fontSize="8" textAnchor="middle">AI API</text>
+              </svg>
+            </div>
+            
+            <div className="w-full xl:w-2/3 space-y-3">
+               <p className="text-[11px] text-[#9CA3AF] leading-relaxed">
+                 <strong className="text-white">Mapping Engine:</strong> We use <strong className="text-[#3b82f6]">React-Leaflet</strong> over satellite/street tiles to provide a visual topographic base layer.
+               </p>
+               <p className="text-[11px] text-[#9CA3AF] leading-relaxed">
+                 <strong className="text-white">Spatial Grid Sampling:</strong> When you click the map, the app generates a localized cross-section. We extract a dense grid of Lat/Lon coordinates surrounding your point to measure local topographic variance.
+               </p>
+               <p className="text-[11px] text-[#9CA3AF] leading-relaxed">
+                 <strong className="text-white">Data Pipeline:</strong> This matrix of points is sent to our Python FastAPI backend. The <strong className="text-[#f97316]">XGBoost Model</strong> predicts the altitude for every coordinate, allowing the frontend to calculate the maximum gradient (slope) to determine structural integrity.
+               </p>
+            </div>
+          </div>
+        </div>
+        )}
+
+        {/* HOW IT WORKS (LAYMAN'S GUIDE) */}
+        {showTutorial && (
+        <div className="glass-panel p-5 rounded-2xl border border-[#1F293D] mb-6 bg-[#0B0F19]">
+          <h3 className="text-white font-bold mb-3 flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-[#ef4444]" /> How it Works (AI & Physics Model)
+          </h3>
+          
+          <div className="flex flex-col xl:flex-row gap-6 items-center">
+            {/* Animated SVG Pictorial */}
+            <div className="w-full xl:w-1/3 bg-[#161D30] rounded-xl border border-[#1F293D] p-4 flex items-center justify-center relative overflow-hidden h-32">
+              <svg viewBox="0 0 200 100" className="w-full h-full">
+                {/* Steep Mountain */}
+                <path d="M 0 100 L 80 10 L 200 100 Z" fill="#1F293D" stroke="#f97316" strokeWidth="2" />
+                
+                {/* Falling Rocks */}
+                <motion.g animate={{ y: [0, 60], x: [0, 40], opacity: [0, 1, 0], rotate: [0, 180] }} transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}>
+                  <circle cx="85" cy="20" r="4" fill="#ef4444" />
+                </motion.g>
+                <motion.g animate={{ y: [0, 70], x: [0, 50], opacity: [0, 1, 0], rotate: [0, -180] }} transition={{ duration: 1.5, repeat: Infinity, ease: "linear", delay: 0.3 }}>
+                  <circle cx="95" cy="25" r="3" fill="#ef4444" />
+                </motion.g>
+                <motion.g animate={{ y: [0, 50], x: [0, 35], opacity: [0, 1, 0], rotate: [0, 90] }} transition={{ duration: 1.5, repeat: Infinity, ease: "linear", delay: 0.6 }}>
+                  <rect x="75" y="30" width="6" height="6" fill="#ef4444" />
+                </motion.g>
+                
+                <text x="10" y="30" fill="#f97316" fontSize="10" fontWeight="bold">Angle &gt; 30°</text>
+                <text x="140" y="80" fill="#ef4444" fontSize="10" fontWeight="bold">Landslide</text>
+              </svg>
+            </div>
+            
+            <div className="w-full xl:w-2/3 space-y-3">
+               <p className="text-[11px] text-[#9CA3AF] leading-relaxed">
+                 <strong className="text-white">The Math (Slope Stability & Factor of Safety):</strong> Landslides rarely occur on flat ground. When you click the map, the AI instantly calculates the altitude of your point and several surrounding points. It then measures the steepness (gradient) of the slope to compute the theoretical Factor of Safety (FS):
+               </p>
+               <div className="bg-[#161D30] p-2 rounded border border-[#1F293D] font-mono text-[10px] text-[#ef4444] space-y-1">
+                 <p>Factor of Safety (FS) = Resisting Forces / Driving Forces</p>
+                 <p className="text-[#9CA3AF]">Driving Force ∝ Gravity × sin(Slope Angle)</p>
+                 <p className="text-[#f97316]">If FS &lt; 1.0 (Angle exceeds Repose limit), slope fails.</p>
+               </div>
+               <p className="text-[11px] text-[#9CA3AF] leading-relaxed">
+                 <strong className="text-white">Why we take it:</strong> If the steepness mathematically exceeds the "Angle of Repose" (typically &gt; 30 degrees), gravity begins to overpower the friction holding the soil together. We immediately flag these specific Lat/Lon coordinates as high-risk Red Zones to prevent construction or travel during heavy rain.
+               </p>
+            </div>
+          </div>
+        </div>
+        )}
+
 
         {markers.length === 0 ? (
           <div className="glass-panel h-64 rounded-2xl border border-[#1F293D] flex flex-col items-center justify-center text-center p-10 bg-[#0B0F19]">

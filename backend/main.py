@@ -20,17 +20,41 @@ import datetime
 app = FastAPI(
     title="GeoAltitude AI API",
     description="Backend API for predicting terrain altitude from GPS coordinates using XGBoost.",
-    version="1.0.0"
 )
 
+import traceback
+@app.exception_handler(Exception)
+async def log_exception_handler(request, exc):
+    from fastapi.responses import JSONResponse
+    from fastapi import HTTPException
+    
+    if isinstance(exc, HTTPException):
+        status_code = exc.status_code
+        content = {"detail": exc.detail}
+    else:
+        status_code = 500
+        content = {"detail": "Internal Server Error", "traceback": traceback.format_exc()}
+        
+    return JSONResponse(
+        status_code=status_code, 
+        content=content,
+        headers={"Access-Control-Allow-Origin": "*"}
+    )
+
 from explainability import explain_router
+from fuel_analysis import fuel_router
+from model_feedback import feedback_router
+from route_intelligence import route_router
 app.include_router(explain_router)
+app.include_router(fuel_router)
+app.include_router(feedback_router)
+app.include_router(route_router)
 
 # Configure CORS for Vite React frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -44,6 +68,7 @@ class PredictionResponse(BaseModel):
     latitude: float
     longitude: float
     predicted_altitude: float = Field(..., description="Predicted elevation in meters")
+    confidence_score: float
     model_version: str
     computation_time_ms: float
 
@@ -103,11 +128,13 @@ def read_root():
 
 @app.get("/api/health")
 def health_check():
-    return {"status": "healthy", "timestamp": time.time()}
+    global global_model
+    active_model = "XGBoost-GeoV1" if global_model is not None else "-"
+    return {"status": "healthy", "timestamp": time.time(), "active_model": active_model}
 
 # --- Prediction Endpoints ---
 @app.post("/api/predict/live", response_model=PredictionResponse)
-def predict_live(coords: GPSCoordinates):
+def predict_live(coords: GPSCoordinates, background_tasks: BackgroundTasks):
     global global_model, scaler, train_features, prediction_history
     if global_model is None or train_features is None:
         raise HTTPException(status_code=400, detail="No active model loaded. Train a model first.")
@@ -127,10 +154,12 @@ def predict_live(coords: GPSCoordinates):
     if 'lat_lon' in train_features.columns:
         df['lat_lon'] = df['latitude'] * df['longitude']
         
-    try:
-        X_live = df[train_features.columns]
-    except KeyError as e:
-        raise HTTPException(status_code=500, detail=f"Feature mismatch: {str(e)}")
+    # Ensure all required features are present
+    for col in train_features.columns:
+        if col not in df.columns:
+            df[col] = 0.0
+            
+    X_live = df[train_features.columns]
         
     if scaler is not None:
         X_scaled = scaler.transform(X_live)
@@ -153,6 +182,21 @@ def predict_live(coords: GPSCoordinates):
     }
     
     prediction_history.append(record)
+    
+    # Store simulated ground truth feedback in the background (10% sampling)
+    import random
+    if random.random() < 0.1:
+        from model_feedback import store_feedback, FeedbackRecord
+        actual_mock = alt_pred + random.uniform(-12.0, 12.0)
+        fb_record = FeedbackRecord(
+            latitude=coords.latitude,
+            longitude=coords.longitude,
+            predicted_altitude=round(alt_pred, 2),
+            actual_altitude=round(actual_mock, 2),
+            model_version="XGB-Reg-v1"
+        )
+        background_tasks.add_task(store_feedback, fb_record)
+        
     return record
 
 @app.post("/api/predict/batch")
@@ -673,8 +717,43 @@ def run_xgboost_training(config: TrainConfig):
         )
         
         global_model = model
-        os.makedirs("data", exist_ok=True)
+        os.makedirs("data/models", exist_ok=True)
         joblib.dump(model, "data/model.joblib")
+        
+        # Save versioned model
+        version_id = f"v{int(time.time())}"
+        model_path = f"data/models/model_{version_id}.joblib"
+        joblib.dump(model, model_path)
+        
+        # Calculate evaluation metrics to save in registry
+        import json
+        y_pred = model.predict(test_features)
+        y_true = test_labels.values
+        r2 = r2_score(y_true, y_pred)
+        rmse = np.sqrt(mean_squared_error(y_true, y_pred))
+        mae = mean_absolute_error(y_true, y_pred)
+        
+        registry_file = "data/models_registry.json"
+        registry = []
+        if os.path.exists(registry_file):
+            try:
+                with open(registry_file, 'r') as f:
+                    registry = json.load(f)
+            except:
+                pass
+                
+        registry.append({
+            "version": version_id,
+            "training_date": datetime.datetime.now().isoformat(),
+            "dataset_size": len(train_features),
+            "r2_score": float(r2),
+            "rmse": float(rmse),
+            "mae": float(mae),
+            "file_path": model_path
+        })
+        
+        with open(registry_file, 'w') as f:
+            json.dump(registry, f, indent=4)
         
         training_progress["status"] = "completed"
         

@@ -23,6 +23,11 @@ import GradientAnalysis from './pages/GradientAnalysis';
 import VehicleIntelligence from './pages/VehicleIntelligence';
 import FloodRiskAnalysis from './pages/FloodRiskAnalysis';
 import LandslideRiskAnalysis from './pages/LandslideRiskAnalysis';
+import ModelFeedback from './pages/ModelFeedback';
+import VehicleRouteIntelligence from './pages/VehicleRouteIntelligence';
+import SystemArchitecture from './pages/SystemArchitecture';
+
+import FuelEfficiencyAnalysis from './pages/FuelEfficiencyAnalysis';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -48,6 +53,7 @@ function App() {
             <Route path="/evaluation" element={<ModelEvaluation />} />
             <Route path="/live-prediction" element={<LivePrediction />} />
             <Route path="/batch-prediction" element={<BatchPrediction />} />
+            <Route path="/fuel-efficiency" element={<FuelEfficiencyAnalysis />} />
             <Route path="/history" element={<History />} />
             <Route path="/explainability" element={<ModelExplainability />} />
             <Route path="/learn" element={<LearnXGBoost />} />
@@ -55,6 +61,9 @@ function App() {
             <Route path="/elevation-profile" element={<ElevationProfile />} />
             <Route path="/gradient" element={<GradientAnalysis />} />
             <Route path="/vehicle-intelligence" element={<VehicleIntelligence />} />
+            <Route path="/route-intelligence" element={<VehicleRouteIntelligence />} />
+            <Route path="/model-feedback" element={<ModelFeedback />} />
+            <Route path="/architecture" element={<SystemArchitecture />} />
             <Route path="/flood-risk" element={<FloodRiskAnalysis />} />
             <Route path="/landslide-risk" element={<LandslideRiskAnalysis />} />
             <Route path="/settings" element={<Settings />} />

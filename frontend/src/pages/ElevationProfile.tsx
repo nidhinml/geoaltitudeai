@@ -6,7 +6,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { 
   Mountain, MapPin, TrendingUp, TrendingDown, Maximize2, 
   Minimize2, RefreshCw, Download, Activity, Play,
-  Undo2, Save, Map as MapIcon, Layers, Car, Ruler, Search, Plus, X
+  Undo2, Save, Map as MapIcon, Layers, Car, Ruler, Search, Plus, X, Eye, EyeOff, Info
 } from 'lucide-react';
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
 import { point } from '@turf/helpers';
@@ -62,6 +62,9 @@ export default function ElevationProfile() {
   const [locationNames, setLocationNames] = useState<Record<number, string>>({});
   const [waypointIndices, setWaypointIndices] = useState<number[]>([]);
   const [searchLocations, setSearchLocations] = useState<string[]>(['', '']);
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [showMapTutorial, setShowMapTutorial] = useState(false);
+  const [showUserGuide, setShowUserGuide] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -520,12 +523,124 @@ export default function ElevationProfile() {
           <h2 className="text-2xl font-black text-white flex items-center gap-2">
             <Mountain className="w-6 h-6 text-[#22c55e]" /> Route Elevation Profile
           </h2>
-          {profileData && (
-            <button onClick={downloadPDF} className="flex items-center gap-2 px-3 py-1.5 bg-[#1F293D] hover:bg-[#263554] text-white text-xs font-bold rounded-lg transition-all border border-white/10">
-              <Download className="w-4 h-4" /> Export PDF
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setShowUserGuide(!showUserGuide)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-[#161D30] hover:bg-[#1F293D] text-[#9CA3AF] hover:text-white text-xs font-bold rounded-lg border border-[#1F293D] transition-colors"
+            >
+              <Info className="w-4 h-4" />
+              {showUserGuide ? 'Hide Guide' : 'User Guide'}
             </button>
-          )}
+            <button 
+              onClick={() => setShowMapTutorial(!showMapTutorial)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-[#161D30] hover:bg-[#1F293D] text-[#9CA3AF] hover:text-white text-xs font-bold rounded-lg border border-[#1F293D] transition-colors"
+            >
+              {showMapTutorial ? <EyeOff className="w-4 h-4" /> : <MapIcon className="w-4 h-4" />}
+              {showMapTutorial ? 'Hide Routing' : 'Routing Tech'}
+            </button>
+            <button 
+              onClick={() => setShowTutorial(!showTutorial)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-[#161D30] hover:bg-[#1F293D] text-[#9CA3AF] hover:text-white text-xs font-bold rounded-lg border border-[#1F293D] transition-colors"
+            >
+              {showTutorial ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              {showTutorial ? 'Hide AI Math' : 'How AI Works'}
+            </button>
+            {profileData && (
+              <button onClick={downloadPDF} className="flex items-center gap-2 px-3 py-1.5 bg-[#1F293D] hover:bg-[#263554] text-white text-xs font-bold rounded-lg transition-all border border-white/10">
+                <Download className="w-4 h-4" /> Export PDF
+              </button>
+            )}
+          </div>
         </div>
+
+        {/* USER GUIDE */}
+        {showUserGuide && (
+        <div className="glass-panel p-5 rounded-2xl border border-[#1F293D] mb-6 bg-[#0B0F19]">
+          <h3 className="text-white font-bold mb-3 flex items-center gap-2">
+            <Info className="w-4 h-4 text-[#22c55e]" /> How to Use This Page
+          </h3>
+          <ol className="list-decimal list-inside space-y-2 text-sm text-[#9CA3AF]">
+            <li><strong>Define a Route:</strong> Click the map to set waypoints, or use the Route Builder search box to automatically find locations.</li>
+            <li><strong>Auto-Routing vs Manual:</strong> Toggle between "Auto Route" to snap to roads (via OSRM) or "Manual Line" for straight-line connections.</li>
+            <li><strong>Analyze:</strong> Click the <strong className="text-[#3b82f6]">Generate</strong> button below the map.</li>
+            <li><strong>Review Profile:</strong> The system extracts altitudes for hundreds of points along the route to build a 2D elevation cross-section, calculating total climb and max slope.</li>
+          </ol>
+        </div>
+        )}
+
+        {/* MAP & ROUTING ARCHITECTURE */}
+        {showMapTutorial && (
+        <div className="glass-panel p-5 rounded-2xl border border-[#1F293D] mb-6 bg-[#0B0F19]">
+          <h3 className="text-white font-bold mb-3 flex items-center gap-2">
+            <MapIcon className="w-4 h-4 text-[#3b82f6]" /> Map & Routing Architecture
+          </h3>
+          <div className="flex flex-col xl:flex-row gap-6 items-center">
+            <div className="w-full xl:w-1/3 bg-[#161D30] rounded-xl border border-[#1F293D] p-4 flex items-center justify-center relative overflow-hidden h-32">
+              <svg viewBox="0 0 200 100" className="w-full h-full">
+                <rect x="20" y="20" width="40" height="60" rx="4" fill="#1F293D" stroke="#3b82f6" strokeWidth="2" />
+                <text x="40" y="52" fill="white" fontSize="10" textAnchor="middle" fontWeight="bold">OSRM</text>
+                
+                <motion.line 
+                  x1="65" y1="50" x2="135" y2="50" stroke="#22c55e" strokeWidth="2" strokeDasharray="4 4"
+                  animate={{ strokeDashoffset: [0, -20] }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                />
+                
+                <rect x="140" y="20" width="40" height="60" rx="4" fill="#1F293D" stroke="#f97316" strokeWidth="2" />
+                <text x="160" y="47" fill="white" fontSize="10" textAnchor="middle" fontWeight="bold">XGBoost</text>
+                <text x="160" y="60" fill="#f97316" fontSize="8" textAnchor="middle">AI API</text>
+              </svg>
+            </div>
+            
+            <div className="w-full xl:w-2/3 space-y-3">
+               <p className="text-[11px] text-[#9CA3AF] leading-relaxed">
+                 <strong className="text-white">Mapping Engine:</strong> We use <strong className="text-[#3b82f6]">React-Leaflet</strong> over OpenStreetMap tiles for lightweight, open-source GIS rendering. 
+               </p>
+               <p className="text-[11px] text-[#9CA3AF] leading-relaxed">
+                 <strong className="text-white">Routing API:</strong> When you enter a Start/End location, the app pings the <strong className="text-[#3b82f6]">OSRM (Open Source Routing Machine) API</strong>. OSRM calculates the fastest driving route and returns an encoded polyline of Lat/Lon coordinates.
+               </p>
+               <p className="text-[11px] text-[#9CA3AF] leading-relaxed">
+                 <strong className="text-white">Data Pipeline:</strong> We sample points along this OSRM route and stream them to our Python FastAPI backend. The <strong className="text-[#f97316]">XGBoost Model</strong> predicts the altitude for each point, rendering the full elevation cross-section.
+               </p>
+            </div>
+          </div>
+        </div>
+        )}
+
+        {/* HOW IT WORKS (AI & PHYSICS MODEL) */}
+        {showTutorial && (
+        <div className="glass-panel p-5 rounded-2xl border border-[#1F293D] mb-6 bg-[#0B0F19]">
+          <h3 className="text-white font-bold mb-3 flex items-center gap-2">
+            <Mountain className="w-4 h-4 text-[#22c55e]" /> How it Works (AI & Physics Model)
+          </h3>
+          <div className="flex flex-col xl:flex-row gap-6 items-center">
+            <div className="w-full xl:w-1/3 bg-[#161D30] rounded-xl border border-[#1F293D] p-4 flex items-center justify-center relative overflow-hidden h-32">
+              <svg viewBox="0 0 200 100" className="w-full h-full">
+                <path d="M 10 90 Q 50 20 100 80 T 190 30" fill="none" stroke="#22c55e" strokeWidth="4" />
+                
+                <motion.circle 
+                  cx="10" cy="90" r="4" fill="white"
+                  animate={{ cx: [10, 50, 100, 145, 190], cy: [90, 50, 80, 55, 30] }}
+                  transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                />
+              </svg>
+            </div>
+            
+            <div className="w-full xl:w-2/3 space-y-3">
+               <p className="text-[11px] text-[#9CA3AF] leading-relaxed">
+                 <strong className="text-white">The Math (Trigonometric Trajectory Tracking):</strong> The AI connects the predicted altitude coordinates by running Haversine calculations over the route array:
+               </p>
+               <div className="bg-[#161D30] p-2 rounded border border-[#1F293D] font-mono text-[10px] text-[#22c55e] space-y-1">
+                 <p>Total Dist = Σ Haversine(P_i, P_i+1)</p>
+                 <p className="text-[#9CA3AF]">Δ Elev = Alt(P_i+1) - Alt(P_i)</p>
+                 <p className="text-[#f97316]">If Δ Elev &gt; 0: Gain += Δ Elev</p>
+               </div>
+               <p className="text-[11px] text-[#9CA3AF] leading-relaxed">
+                 <strong className="text-white">Why we take it:</strong> By measuring every incremental rise and fall along the trajectory path, we accurately compute the Total Elevation Gain/Loss and Maximum Steepness (%) for long-haul routes.
+               </p>
+            </div>
+          </div>
+        </div>
+        )}
 
         {!profileData ? (
           <div className="glass-panel h-64 rounded-2xl border border-[#1F293D] flex flex-col items-center justify-center text-center p-10 bg-[#0B0F19]">

@@ -24,9 +24,14 @@ import {
   Ruler,
   Radar,
   Droplets,
-  MountainSnow
+  MountainSnow,
+  Fuel,
+  RefreshCw,
+  Navigation,
+  Layers
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import GlobalPageGuide from '../components/GlobalPageGuide';
 
 interface SidebarItem {
   name: string;
@@ -42,17 +47,21 @@ const sidebarItems: SidebarItem[] = [
   { name: 'Feature Engineering', path: '/features', icon: Cpu },
   { name: 'Train Model', path: '/train', icon: Play },
   { name: 'Model Evaluation', path: '/evaluation', icon: LineChart },
-  { name: '🧠 Model Explainability', path: '/explainability', icon: Brain },
-  { name: '📚 Learn XGBoost', path: '/learn', icon: BookOpen },
   { name: '🌄 Terrain Intelligence', path: '/terrain', icon: Mountain },
   { name: '📈 Elevation Profile', path: '/elevation-profile', icon: TrendingUp },
   { name: '📐 Gradient Analysis', path: '/gradient', icon: Ruler },
   { name: '📡 Vehicle Intelligence', path: '/vehicle-intelligence', icon: Radar },
+  { name: '🚍 Route Intelligence', path: '/route-intelligence', icon: Navigation },
   { name: '🌊 Flood Risk Analysis', path: '/flood-risk', icon: Droplets },
   { name: '⛰️ Landslide Risk', path: '/landslide-risk', icon: MountainSnow },
+  { name: '⛽ Fuel Efficiency', path: '/fuel-efficiency', icon: Fuel },
+  { name: '🔄 Model Feedback', path: '/model-feedback', icon: RefreshCw },
   { name: 'Live Prediction', path: '/live-prediction', icon: MapPin },
   { name: 'Batch Prediction', path: '/batch-prediction', icon: UploadCloud },
+  { name: '🧠 Model Explainability', path: '/explainability', icon: Brain },
+  { name: '📚 Learn XGBoost', path: '/learn', icon: BookOpen },
   { name: 'History', path: '/history', icon: HistoryIcon },
+  { name: 'System Architecture', path: '/architecture', icon: Layers },
   { name: 'Settings', path: '/settings', icon: SettingsIcon },
 ];
 
@@ -61,13 +70,38 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [backendStatus, setBackendStatus] = useState<'checking' | 'online' | 'offline'>('checking');
   const location = useLocation();
 
+  // Profile Settings State
+  const [profileName, setProfileName] = useState(() => localStorage.getItem('geo_profile_name') || 'Nidhin');
+  const [visiblePages, setVisiblePages] = useState<string[]>(() => {
+    const saved = localStorage.getItem('geo_visible_pages');
+    return saved ? JSON.parse(saved) : sidebarItems.map(i => i.path);
+  });
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [activeModel, setActiveModel] = useState('-');
+
+  useEffect(() => {
+    localStorage.setItem('geo_profile_name', profileName);
+  }, [profileName]);
+
+  useEffect(() => {
+    localStorage.setItem('geo_visible_pages', JSON.stringify(visiblePages));
+  }, [visiblePages]);
+
+  const togglePageVisibility = (path: string) => {
+    setVisiblePages(prev => 
+      prev.includes(path) ? prev.filter(p => p !== path) : [...prev, path]
+    );
+  };
+
   // Polling backend health status
   useEffect(() => {
     const checkHealth = async () => {
       try {
         const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api'}/health`);
         if (response.ok) {
+          const data = await response.json();
           setBackendStatus('online');
+          if (data.active_model) setActiveModel(data.active_model);
         } else {
           setBackendStatus('offline');
         }
@@ -103,7 +137,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Navigation list */}
         <nav className="flex-1 overflow-y-auto px-4 py-6 space-y-1.5 scrollbar-thin">
-          {sidebarItems.map((item) => {
+          {sidebarItems.filter(item => visiblePages.includes(item.path)).map((item) => {
             const isActive = location.pathname === item.path;
             const Icon = item.icon;
 
@@ -191,7 +225,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </div>
 
               <nav className="flex-1 overflow-y-auto px-4 py-6 space-y-1.5">
-                {sidebarItems.map((item) => {
+                {sidebarItems.filter(item => visiblePages.includes(item.path)).map((item) => {
                   const isActive = location.pathname === item.path;
                   const Icon = item.icon;
 
@@ -248,18 +282,106 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-[#1E293B] border border-[#334155] rounded-full text-xs">
               <Activity className="w-3.5 h-3.5 text-[#22c55e]" />
               <span className="text-[#9CA3AF]">Active Model:</span>
-              <span className="font-semibold text-white">-</span>
+              <span className={`font-semibold ${activeModel !== '-' ? 'text-[#3b82f6]' : 'text-white'}`}>{activeModel}</span>
             </div>
 
+            <GlobalPageGuide />
+
             {/* Quick Profile */}
-            <div className="flex items-center gap-2 border border-[#1F293D] bg-[#161D30]/60 px-3 py-1.5 rounded-full">
+            <button 
+              onClick={() => setIsProfileModalOpen(true)}
+              className="flex items-center gap-2 border border-[#1F293D] bg-[#161D30]/60 px-3 py-1.5 rounded-full hover:bg-[#1F293D] hover:border-[#374151] transition-all cursor-pointer outline-none focus:ring-2 focus:ring-[#22c55e]/50"
+            >
               <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-[#22c55e] to-[#3b82f6] flex items-center justify-center text-[10px] font-bold text-black uppercase">
-                ME
+                {profileName.substring(0, 2)}
               </div>
-              <span className="hidden md:inline text-xs font-semibold text-white">ML Engineer</span>
-            </div>
+              <span className="hidden md:inline text-xs font-semibold text-white">{profileName}</span>
+            </button>
           </div>
         </header>
+
+        {/* Profile Settings Modal */}
+        <AnimatePresence>
+          {isProfileModalOpen && (
+            <>
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 0.5 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setIsProfileModalOpen(false)}
+                className="fixed inset-0 bg-black z-40"
+              />
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95, y: -20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: -20 }}
+                className="fixed top-20 right-6 w-[400px] max-h-[80vh] bg-[#0B0F19] border border-[#1F293D] rounded-2xl shadow-2xl z-50 flex flex-col overflow-hidden"
+              >
+                <div className="p-5 border-b border-[#1F293D] flex justify-between items-center bg-gradient-to-r from-[#161D30] to-transparent">
+                  <h3 className="text-white font-bold flex items-center gap-2">
+                    <SettingsIcon className="w-5 h-5 text-[#3b82f6]" /> Profile & Layout Settings
+                  </h3>
+                  <button onClick={() => setIsProfileModalOpen(false)} className="text-[#9CA3AF] hover:text-white transition-colors">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                
+                <div className="p-5 overflow-y-auto custom-scrollbar flex-1 space-y-6">
+                  {/* Name Edit */}
+                  <div>
+                    <label className="block text-xs text-[#9CA3AF] font-bold uppercase tracking-wider mb-2">Display Name</label>
+                    <input 
+                      type="text" 
+                      value={profileName}
+                      onChange={(e) => setProfileName(e.target.value)}
+                      className="w-full bg-[#161D30] border border-[#374151] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#3b82f6] focus:ring-1 focus:ring-[#3b82f6] transition-all"
+                      placeholder="Enter your name..."
+                    />
+                  </div>
+
+                  {/* Sidebar Visibility Toggle */}
+                  <div>
+                    <label className="block text-xs text-[#9CA3AF] font-bold uppercase tracking-wider mb-3">Sidebar Configuration</label>
+                    <p className="text-xs text-[#6B7280] mb-4">Select which modules you want to display in the main sidebar.</p>
+                    
+                    <div className="space-y-2">
+                      {sidebarItems.map((item) => {
+                        const isVisible = visiblePages.includes(item.path);
+                        const Icon = item.icon;
+                        
+                        return (
+                          <label key={item.path} className="flex items-center gap-3 p-3 rounded-xl border border-[#1F293D] bg-[#161D30]/50 hover:bg-[#1F293D] cursor-pointer transition-colors group">
+                            <input 
+                              type="checkbox" 
+                              checked={isVisible}
+                              onChange={() => togglePageVisibility(item.path)}
+                              className="w-4 h-4 rounded bg-[#080B11] border-[#374151] text-[#22c55e] focus:ring-0 focus:ring-offset-0 transition-colors"
+                            />
+                            <div className="flex items-center gap-3 flex-1">
+                              <div className={`p-1.5 rounded-lg ${isVisible ? 'bg-[#22c55e]/10 text-[#22c55e]' : 'bg-gray-800 text-gray-500'} transition-colors`}>
+                                <Icon className="w-4 h-4" />
+                              </div>
+                              <span className={`text-sm ${isVisible ? 'text-white' : 'text-[#6B7280] line-through'} transition-colors`}>{item.name}</span>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="p-4 border-t border-[#1F293D] bg-[#161D30]/80">
+                  <button 
+                    onClick={() => setIsProfileModalOpen(false)}
+                    className="w-full py-2.5 bg-[#3b82f6] hover:bg-[#2563eb] text-white font-bold rounded-xl transition-all shadow-[0_0_15px_rgba(59,130,246,0.3)]"
+                  >
+                    Done
+                  </button>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
 
         {/* Viewport for subpages */}
         <main className="flex-1 overflow-y-auto p-6 scrollbar-thin">

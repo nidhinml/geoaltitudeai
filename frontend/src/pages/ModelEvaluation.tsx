@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ScatterChart, Scatter, ReferenceLine } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ScatterChart, Scatter, ReferenceLine, ComposedChart, Line } from 'recharts';
 import { ShieldCheck, Award, AlertCircle, BarChart2, Download } from 'lucide-react';
 
 interface EvaluationData {
@@ -110,7 +110,7 @@ export default function ModelEvaluation() {
           </div>
           <div className="flex-1 min-h-0">
             <ResponsiveContainer width="100%" height="100%">
-              <ScatterChart margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+              <ComposedChart margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1F293D" />
                 <XAxis type="number" dataKey="actual" name="Actual Elevation" unit="m" stroke="#9CA3AF" fontSize={11} domain={['auto', 'auto']} />
                 <YAxis type="number" dataKey="predicted" name="Predicted" unit="m" stroke="#9CA3AF" fontSize={11} domain={['auto', 'auto']} />
@@ -119,7 +119,25 @@ export default function ModelEvaluation() {
                   contentStyle={{ backgroundColor: '#161D30', borderColor: '#1F293D', borderRadius: '8px' }}
                 />
                 <Scatter name="Predictions" data={data.actual_vs_predicted} fill="#3b82f6" opacity={0.6} />
-              </ScatterChart>
+                <Line 
+                  name="Perfect Accuracy"
+                  data={[
+                    {actual: 0, predicted: 0}, 
+                    {
+                      actual: Math.max(...data.actual_vs_predicted.map((d: any) => Math.max(d.actual, d.predicted))) * 1.1, 
+                      predicted: Math.max(...data.actual_vs_predicted.map((d: any) => Math.max(d.actual, d.predicted))) * 1.1
+                    }
+                  ]}
+                  type="linear" 
+                  dataKey="predicted" 
+                  stroke="#ef4444" 
+                  strokeDasharray="5 5" 
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={false}
+                  isAnimationActive={false}
+                />
+              </ComposedChart>
             </ResponsiveContainer>
           </div>
         </div>

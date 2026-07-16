@@ -44,6 +44,9 @@ const SecDataset = () => (
   <div>
     <SectionHeader index={1} title="The Raw Dataset" icon={Database} description="Every machine learning model starts with data. For GeoAltitude, our raw dataset consists of thousands of GPS coordinates collected worldwide. Our goal is to predict the Altitude based on the Latitude and Longitude." />
     <GlassContainer>
+      <p className="text-[11px] text-[#9CA3AF] mb-6 leading-relaxed">
+         <strong className="text-white">What it means:</strong> This is what the raw data looks like to the computer. The <strong className="text-[#3b82f6]">Features</strong> (Lat/Lon) are the clues the AI uses, and the <strong className="text-[#22c55e]">Target</strong> (Altitude) is the exact answer it is trying to learn to guess.
+      </p>
       <div className="overflow-hidden rounded-xl border border-[#1F293D]">
         <table className="w-full text-left text-sm font-mono text-[#9CA3AF]">
           <thead className="bg-[#161D30] text-white">
@@ -72,6 +75,17 @@ const SecDataset = () => (
           </tbody>
         </table>
       </div>
+      <div className="mt-8 p-6 bg-[#0B0F19] rounded-xl border border-[#1F293D]">
+        <h3 className="text-white font-bold mb-4 flex items-center gap-2">
+          <Database className="w-5 h-5 text-[#3b82f6]" /> Data Storage Architecture
+        </h3>
+        <div className="space-y-4 text-sm text-[#9CA3AF] leading-relaxed">
+          <p><strong className="text-white">1. The Raw Datasets (CSV):</strong> When you upload a GPS dataset via the "Dataset" tab, the file is saved directly into the <code className="text-[#3b82f6]">backend/uploads/</code> directory. The backend (FastAPI) loads this CSV into RAM using Pandas DataFrames so the AI can train on it extremely fast.</p>
+          <p><strong className="text-white">2. The Trained AI Models (.joblib):</strong> Once XGBoost finishes training, we use <code className="text-[#3b82f6]">joblib</code> to serialize the AI into a highly compressed binary file (<code className="text-[#3b82f6]">backend/data/model.joblib</code>). Upon restart, it instantly loads back into memory for predictions without retraining.</p>
+          <p><strong className="text-white">3. Model Feedback & Telemetry (CSV):</strong> Live predictions on the map are compared to Ground Truth and appended as rows to <code className="text-[#3b82f6]">backend/data/model_feedback.csv</code>. This acts as our database table to generate the Dashboard charts.</p>
+          <p><strong className="text-white">4. Model Versioning (JSON):</strong> A lightweight <code className="text-[#3b82f6]">backend/data/models_registry.json</code> file acts as a catalog pointing to different <code className="text-[#3b82f6]">.joblib</code> files to track model versions and R² scores.</p>
+        </div>
+      </div>
     </GlassContainer>
   </div>
 );
@@ -80,7 +94,11 @@ const SecDataset = () => (
 const SecCleaning = () => (
   <div>
     <SectionHeader index={2} title="Data Cleaning" icon={Eraser} description="Real-world data is messy. GPS sensors sometimes fail, leaving blank fields or recording impossible altitudes (like 0m on a mountain). We filter out missing values and mathematical outliers." />
-    <GlassContainer className="flex items-center justify-between gap-4 py-12 px-10">
+    <GlassContainer className="py-12 px-10">
+      <p className="text-[11px] text-[#9CA3AF] mb-8 leading-relaxed">
+         <strong className="text-white">What it means:</strong> "Garbage in, garbage out." If we teach the AI using corrupted GPS data, it will make corrupted predictions. We use statistical math (like Z-Scores) to automatically find and delete impossible data points before the AI ever sees them.
+      </p>
+      <div className="flex items-center justify-between gap-4">
       {[
         { label: "Raw GPS Data", color: "from-gray-600 to-gray-800" },
         { label: "Remove Nulls", color: "from-yellow-500 to-yellow-700" },
@@ -100,6 +118,7 @@ const SecCleaning = () => (
           )}
         </React.Fragment>
       ))}
+      </div>
     </GlassContainer>
   </div>
 );
@@ -109,6 +128,9 @@ const SecFeatureEng = () => (
   <div>
     <SectionHeader index={3} title="Feature Engineering" icon={Cpu} description="Decision trees draw straight lines (boxes) to divide data. Because the Earth is round and terrain is complex, we help the model by inventing new non-linear features." />
     <GlassContainer>
+      <p className="text-[11px] text-[#9CA3AF] mb-6 leading-relaxed">
+         <strong className="text-white">What it means:</strong> We are mathematically giving the AI a "hint." By multiplying Latitude × Longitude, we hand the AI a pre-calculated synergy metric, helping it understand that altitude is based on the exact intersection of the two.
+      </p>
       <div className="flex flex-col md:flex-row items-center gap-10">
         <div className="flex-1 space-y-4">
           <div className="p-4 bg-[#161D30] rounded-xl border border-[#1F293D] flex justify-center gap-4">
@@ -144,11 +166,109 @@ const SecFeatureEng = () => (
   </div>
 );
 
-// SECTION 4: Train Test Split
+// SECTION 4: Vectorization & DMatrix
+const SecVectorization = () => (
+  <div>
+    <SectionHeader index={4} title="Vectorization & DMatrix" icon={Database} description="XGBoost is a mathematical engine; it cannot read raw CSVs. It only understands numbers arranged in arrays (vectors and matrices). Here is how GeoAltitude bridges that gap." />
+    <GlassContainer>
+      <p className="text-[11px] text-[#9CA3AF] mb-8 leading-relaxed">
+         <strong className="text-white">What it means:</strong> We transform a tabular CSV row into a pure mathematical row vector, standardize the scale so no large numbers dominate, and finally compile it into XGBoost's proprietary C++ memory structure (DMatrix) for ultra-fast parallel processing.
+      </p>
+
+      <div className="space-y-6 text-[#D1D5DB] text-sm leading-relaxed mb-12 border-l-2 border-[#3b82f6] pl-6 bg-[#0B0F19]/50 p-6 rounded-r-xl">
+        <div>
+          <h4 className="font-bold text-white mb-1">Step 1: Parsing the CSV into a DataFrame</h4>
+          <p>When you upload the CSV, the FastAPI backend uses Pandas to read the text file into memory: <code className="text-[#3b82f6] bg-[#161D30] px-1.5 py-0.5 rounded">df = pd.read_csv(...)</code>. Instead of a single text block, the data is now structured in a table with rows and columns. At this stage, it is still just tabular data, not a machine-learning vector.</p>
+        </div>
+        <div>
+          <h4 className="font-bold text-white mb-1">Step 2: Feature Engineering (Creating the Matrix)</h4>
+          <p>The backend selects only the relevant input columns (e.g., latitude, longitude) and the target column (altitude). It creates new calculated columns like <code className="text-[#a855f7] bg-[#161D30] px-1.5 py-0.5 rounded">lat_sq = latitude²</code>. This transforms a single GPS coordinate into a multi-dimensional array (a row vector).</p>
+        </div>
+        <div>
+          <h4 className="font-bold text-white mb-1">Step 3: Scaling into Standardized Vectors</h4>
+          <p>Machine learning models struggle if one number is 10.85 and another is 5817.11 because the larger number mathematically dominates the equation. The backend passes this data through Scikit-Learn's <code className="text-[#06b6d4] bg-[#161D30] px-1.5 py-0.5 rounded">StandardScaler</code>, forcing every column to have a mean of 0 and a standard deviation of 1. These are the final, pure mathematical vectors.</p>
+        </div>
+        <div>
+          <h4 className="font-bold text-white mb-1">Step 4: The XGBoost DMatrix</h4>
+          <p>When we pass this matrix to XGBoost using <code className="text-[#f97316] bg-[#161D30] px-1.5 py-0.5 rounded">model.fit(X, y)</code>, the library automatically takes the 2D array and converts it into its own proprietary C++ memory structure called a <strong className="text-orange-400">DMatrix</strong>. This organizes the vectors into blocks so XGBoost can rapidly sort them in parallel across your CPU cores to build its decision trees!</p>
+        </div>
+      </div>
+      
+      {/* Pictorial Flow */}
+      <div className="flex flex-col items-center gap-6 mt-10">
+        
+        {/* Step 1: Raw Row */}
+        <div className="flex flex-col items-center">
+          <span className="text-xs font-bold text-[#9CA3AF] mb-2 uppercase tracking-widest">1. Raw CSV Row</span>
+          <motion.div whileHover={{ scale: 1.05 }} className="bg-[#161D30] border border-[#1F293D] p-3 rounded-lg font-mono text-white tracking-widest shadow-lg">
+            [ 10.85, 76.27 ]
+          </motion.div>
+        </div>
+        
+        <motion.div animate={{ y: [0, 5, 0] }} transition={{ repeat: Infinity, duration: 1.5 }}><ArrowDown className="w-6 h-6 text-[#3b82f6]/50" /></motion.div>
+        
+        {/* Step 2: Feature Engineered Row */}
+        <div className="flex flex-col items-center">
+          <span className="text-xs font-bold text-[#9CA3AF] mb-2 uppercase tracking-widest">2. Polynomial Features Added</span>
+          <motion.div whileHover={{ scale: 1.05 }} className="bg-[#1F293D] border border-purple-500/50 p-3 rounded-lg font-mono text-purple-300 tracking-widest shadow-[0_0_15px_rgba(168,85,247,0.2)]">
+            [ 10.85, 76.27, 117.72, 5817.11 ]
+          </motion.div>
+        </div>
+
+        <motion.div animate={{ y: [0, 5, 0] }} transition={{ repeat: Infinity, duration: 1.5, delay: 0.2 }}><ArrowDown className="w-6 h-6 text-[#3b82f6]/50" /></motion.div>
+        
+        {/* Step 3: Standard Scaler */}
+        <div className="flex flex-col items-center">
+          <span className="text-xs font-bold text-[#9CA3AF] mb-2 uppercase tracking-widest">3. Standard Scaler (Mean 0, Std 1)</span>
+          <motion.div whileHover={{ scale: 1.05 }} className="bg-gradient-to-r from-blue-900/40 to-cyan-900/40 border border-cyan-500/50 p-3 rounded-lg font-mono text-cyan-300 tracking-widest shadow-[0_0_15px_rgba(6,182,212,0.2)]">
+            [ -0.42, 1.25, -0.31, 1.18 ]
+          </motion.div>
+          <span className="text-[10px] text-[#9CA3AF] mt-2 italic">The pure mathematical vector</span>
+        </div>
+
+        <motion.div animate={{ y: [0, 5, 0] }} transition={{ repeat: Infinity, duration: 1.5, delay: 0.4 }}><ArrowDown className="w-6 h-6 text-[#3b82f6]/50" /></motion.div>
+        
+        {/* Step 4: DMatrix */}
+        <div className="flex flex-col items-center w-full max-w-lg mt-2">
+          <span className="text-xs font-bold text-orange-400 mb-2 uppercase tracking-widest">4. XGBoost DMatrix</span>
+          <motion.div 
+            animate={{ boxShadow: ['0 0 10px rgba(249,115,22,0.2)', '0 0 30px rgba(249,115,22,0.5)', '0 0 10px rgba(249,115,22,0.2)'] }}
+            transition={{ repeat: Infinity, duration: 2 }}
+            className="w-full bg-[#161D30] border-2 border-orange-500 rounded-xl p-5 flex flex-col gap-3 relative overflow-hidden"
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-orange-400 font-black tracking-widest text-sm">C++ MEMORY BLOCK</span>
+              <Layers className="w-6 h-6 text-orange-400" />
+            </div>
+            {/* Animated memory blocks */}
+            <div className="grid grid-cols-8 gap-2">
+              {Array.from({length: 24}).map((_, i) => (
+                <motion.div 
+                  key={i} 
+                  animate={{ opacity: [0.2, 1, 0.2] }}
+                  transition={{ repeat: Infinity, duration: Math.random() * 1.5 + 0.5, delay: i * 0.05 }}
+                  className="h-6 bg-orange-500/40 rounded-sm border border-orange-500/60"
+                />
+              ))}
+            </div>
+            <p className="text-[10px] text-orange-200/70 text-center mt-2 uppercase tracking-wider font-bold">Optimized for massive parallel CPU sorting</p>
+          </motion.div>
+        </div>
+
+      </div>
+    </GlassContainer>
+  </div>
+);
+
+// SECTION 5: Train Test Split
 const SecSplit = () => (
   <div>
-    <SectionHeader index={4} title="Train / Test Split" icon={SplitSquareHorizontal} description="We cannot test our model on the data it learned from (it would just memorize the answers!). We split the data: 80% is hidden inside the model to learn, and 20% is locked away for a final pop quiz." />
+    <SectionHeader index={5} title="Train / Test Split" icon={SplitSquareHorizontal} description="We cannot test our model on the data it learned from (it would just memorize the answers!). We split the data: 80% is hidden inside the model to learn, and 20% is locked away for a final pop quiz." />
     <GlassContainer>
+      <p className="text-[11px] text-[#9CA3AF] mb-6 leading-relaxed">
+         <strong className="text-white">What it means:</strong> We physically lock 20% of the dataset in a vault. After the AI finishes studying the 80%, we force it to take a "Final Exam" using the locked 20% to prove it actually learned geographical logic and didn't just memorize the map.
+      </p>
       <div className="flex gap-2 flex-wrap justify-center overflow-hidden h-[200px] content-start">
         {Array.from({ length: 100 }).map((_, i) => {
           const isTrain = i < 80;
@@ -177,11 +297,14 @@ const SecSplit = () => (
   </div>
 );
 
-// SECTION 5: XGBoost Training
+// SECTION 6: XGBoost Training
 const SecXGBoost = () => (
   <div>
-    <SectionHeader index={5} title="XGBoost: Residual Learning" icon={Target} description="Unlike Random Forests which build trees independently, XGBoost builds trees sequentially. Each new tree looks at the mistakes (residuals) of the previous trees and tries to fix them!" />
+    <SectionHeader index={6} title="XGBoost: Residual Learning" icon={Target} description="Unlike Random Forests which build trees independently, XGBoost builds trees sequentially. Each new tree looks at the mistakes (residuals) of the previous trees and tries to fix them!" />
     <GlassContainer>
+      <p className="text-[11px] text-[#9CA3AF] mb-6 leading-relaxed">
+         <strong className="text-white">What it means:</strong> Instead of building one massive, super-smart brain, XGBoost builds hundreds of small, weak brains. The first brain makes a bad guess. The second brain's ONLY job is to look at the first brain's mistakes and fix them. This repeats 100 times.
+      </p>
       <div className="flex flex-col space-y-6 relative">
         <div className="absolute left-6 top-10 bottom-10 w-1 bg-[#1F293D]" />
         {[
@@ -208,11 +331,15 @@ const SecXGBoost = () => (
   </div>
 );
 
-// SECTION 6: Tree Building
+// SECTION 7: Tree Building
 const SecTreeGrowth = () => (
   <div>
-    <SectionHeader index={6} title="Growing a Decision Tree" icon={GitBranch} description="Inside a single tree, the algorithm tests every possible split on every feature to find the one that best separates high altitudes from low altitudes." />
-    <GlassContainer className="h-[400px] flex items-center justify-center relative overflow-hidden">
+    <SectionHeader index={7} title="Growing a Decision Tree" icon={GitBranch} description="Inside a single tree, the algorithm tests every possible split on every feature to find the one that best separates high altitudes from low altitudes." />
+    <GlassContainer>
+      <p className="text-[11px] text-[#9CA3AF] mb-6 leading-relaxed">
+         <strong className="text-white">What it means:</strong> A single decision tree is just the AI playing a massive game of "20 Questions." (e.g., Is Latitude &gt; 10? Yes. Is Longitude &lt; 76? No.) It follows the branches down until it reaches the final Leaf, which contains the exact altitude guess.
+      </p>
+      <div className="h-[400px] flex items-center justify-center relative overflow-hidden">
       <svg width="400" height="300" viewBox="0 0 400 300">
         <motion.circle cx="200" cy="50" r="20" fill="#1e293b" stroke="#3b82f6" strokeWidth="3" initial={{ scale: 0 }} whileInView={{ scale: 1 }} />
         <text x="200" y="55" textAnchor="middle" fill="white" fontSize="12" fontWeight="bold">Root</text>
@@ -236,15 +363,19 @@ const SecTreeGrowth = () => (
         <motion.circle cx="150" cy="250" r="20" fill="#22c55e" initial={{ scale: 0 }} whileInView={{ scale: 1 }} transition={{ delay: 1.5 }} />
         <text x="150" y="255" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold">Leaf</text>
       </svg>
+      </div>
     </GlassContainer>
   </div>
 );
 
-// SECTION 7: Ensemble
+// SECTION 8: Ensemble
 const SecEnsemble = () => (
   <div>
-    <SectionHeader index={7} title="Ensemble Summation" icon={Layers} description="The final prediction is NOT an average. Because each tree predicts a residual (error adjustment), the final altitude is the Sum of all tree outputs plus a base bias." />
+    <SectionHeader index={8} title="Ensemble Summation" icon={Layers} description="The final prediction is NOT an average. Because each tree predicts a residual (error adjustment), the final altitude is the Sum of all tree outputs plus a base bias." />
     <GlassContainer>
+       <p className="text-[11px] text-[#9CA3AF] mb-6 leading-relaxed text-center">
+         <strong className="text-white">What it means:</strong> To get the final prediction, the AI simply takes the hundreds of tiny mathematical corrections (+15m, -3m, +0.4m) from every single tree in the forest and adds them all together.
+       </p>
        <div className="flex flex-wrap gap-4 justify-center items-center">
          {[15.2, -3.1, 0.4, -0.1, 0.05].map((val, i) => (
            <React.Fragment key={i}>
@@ -269,11 +400,14 @@ const SecEnsemble = () => (
   </div>
 );
 
-// SECTION 8: Workflow
+// SECTION 9: Workflow
 const SecWorkflow = () => (
   <div>
-    <SectionHeader index={8} title="Live Prediction Workflow" icon={MapPin} description="When you input a GPS coordinate, it flows through the exact same mathematical pipeline before hitting the ensemble of trees." />
+    <SectionHeader index={9} title="Live Prediction Workflow" icon={MapPin} description="When you input a GPS coordinate, it flows through the exact same mathematical pipeline before hitting the ensemble of trees." />
     <GlassContainer className="py-16">
+      <p className="text-[11px] text-[#9CA3AF] mb-12 leading-relaxed text-center">
+         <strong className="text-white">What it means:</strong> Whenever you click on the Live Map, your coordinate goes through this exact pipeline in a fraction of a millisecond. We mathematically clean it, scale it, and feed it into the forest to get the output.
+      </p>
       <div className="flex flex-col md:flex-row items-center justify-between relative max-w-4xl mx-auto">
         <div className="absolute top-1/2 left-0 right-0 h-1 bg-[#1F293D] -translate-y-1/2 z-0 hidden md:block" />
         
@@ -303,10 +437,15 @@ const SecWorkflow = () => (
   </div>
 );
 
-// SECTION 9: Metrics
+// SECTION 10: Metrics
 const SecMetrics = () => (
   <div>
-    <SectionHeader index={9} title="Evaluation Metrics" icon={BarChart3} description="How do we know the model is good? We test it on the hidden 20% of data and calculate these standard regression metrics." />
+    <SectionHeader index={10} title="Evaluation Metrics" icon={BarChart3} description="How do we know the model is good? We test it on the hidden 20% of data and calculate these standard regression metrics." />
+    <div className="mb-6 text-center">
+      <p className="text-[11px] text-[#9CA3AF] leading-relaxed">
+         <strong className="text-white">What it means:</strong> These are the official grading rubrics we use to score the AI's "Final Exam."
+      </p>
+    </div>
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
       <GlassContainer className="!p-6 flex flex-col items-center text-center">
         <div className="w-12 h-12 bg-blue-500/20 text-blue-500 rounded-full flex items-center justify-center mb-4"><BarChart3 /></div>
@@ -356,6 +495,7 @@ export default function LearnXGBoost() {
       <SecDataset />
       <SecCleaning />
       <SecFeatureEng />
+      <SecVectorization />
       <SecSplit />
       <SecXGBoost />
       <SecTreeGrowth />

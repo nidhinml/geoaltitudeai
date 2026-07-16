@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, useMapEvents, ZoomControl, GeoJSON } from 'react-leaflet';
 import L from 'leaflet';
+import { motion } from 'framer-motion';
 import { 
-  Activity, Play, Square, Car, Search, Plus, X, TrendingUp, Navigation, Radar, Zap, Compass, Layers, Map as MapIcon, Droplets, MountainSnow
+  Activity, Play, Square, Car, Search, Plus, X, TrendingUp, Navigation, Radar, Zap, Compass, Layers, Map as MapIcon, Droplets, MountainSnow, Fuel, Info, TrendingDown, Eye, EyeOff
 } from 'lucide-react';
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
 import { point } from '@turf/helpers';
@@ -54,11 +55,13 @@ const getCardinalDirection = (heading: number) => {
 };
 
 const getDifficulty = (gradient: number) => {
-  if (gradient < 1) return { label: 'Flat', color: '#22c55e' };
-  if (gradient < 3) return { label: 'Mild', color: '#84cc16' };
-  if (gradient < 6) return { label: 'Moderate', color: '#eab308' };
-  if (gradient < 10) return { label: 'Steep', color: '#f97316' };
-  return { label: 'Extreme', color: '#ef4444' };
+  if (gradient > 8) return { label: 'Extreme Climb', color: '#ef4444' };
+  if (gradient > 5) return { label: 'Steep Climb', color: '#f97316' };
+  if (gradient > 2) return { label: 'Moderate Climb', color: '#eab308' };
+  if (gradient > 0.5) return { label: 'Mild Climb', color: '#84cc16' };
+  if (gradient < -8) return { label: 'Steep Descent', color: '#3b82f6' };
+  if (gradient < -2) return { label: 'Moderate Descent', color: '#60a5fa' };
+  return { label: 'Flat Road', color: '#22c55e' };
 };
 
 const getFloodRisk = (altitude: number) => {
@@ -96,12 +99,17 @@ export default function VehicleIntelligence() {
   const [loading, setLoading] = useState(false);
   const [mapStyle, setMapStyle] = useState<'street' | 'satellite' | 'traffic'>('traffic');
   const [keralaGeoJSON, setKeralaGeoJSON] = useState<any>(null);
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [showMapTutorial, setShowMapTutorial] = useState(false);
+  const [showUserGuide, setShowUserGuide] = useState(false);
   
   const [isTracking, setIsTracking] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [history, setHistory] = useState<any[]>([]);
   const [currentRoad, setCurrentRoad] = useState<string>("Detecting road...");
   const [showAnalytics, setShowAnalytics] = useState(false);
+  const [fuelEstimates, setFuelEstimates] = useState<any[]>([]);
+  const [totalFuelLoss, setTotalFuelLoss] = useState<number>(0);
   
   const [telemetry, setTelemetry] = useState({
     vehicleId: 'KL-01-AIS-9943',
@@ -113,7 +121,9 @@ export default function VehicleIntelligence() {
     floodRisk: { level: 'Unknown', color: '#9CA3AF' },
     landslideRisk: { level: 'Unknown', color: '#9CA3AF' },
     totalAscent: 0,
-    distanceTraveled: 0
+    totalDescent: 0,
+    distanceTraveled: 0,
+    fuelImpact: 0
   });
 
   const reportRef = useRef<HTMLDivElement>(null);
@@ -182,7 +192,26 @@ export default function VehicleIntelligence() {
           setCurrentIndex(0);
           setHistory([]);
           setIsTracking(false);
-          setTelemetry(prev => ({ ...prev, speed: 0, heading: 0, altitude: 0, gradient: 0, totalAscent: 0, distanceTraveled: 0 }));
+          setTelemetry(prev => ({ ...prev, speed: 0, heading: 0, altitude: 0, gradient: 0, totalAscent: 0, totalDescent: 0, distanceTraveled: 0, fuelImpact: 0 }));
+          
+          try {
+            const fuelRes = await fetch(`${API_BASE}/fuel/estimate`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ route: newRoute.map((p: any) => ({ latitude: p.lat, longitude: p.lon })) })
+            });
+            if (fuelRes.ok) {
+              const fuelData = await fuelRes.json();
+              setFuelEstimates(fuelData.route_analysis || []);
+              setTotalFuelLoss(fuelData.summary?.avg_fuel_impact || 0);
+            } else {
+              setFuelEstimates([]);
+              setTotalFuelLoss(0);
+            }
+          } catch (e) {
+            console.error("Failed to fetch fuel estimates", e);
+            setFuelEstimates([]);
+          }
         }
       }
     } catch (e) {
@@ -217,15 +246,21 @@ export default function VehicleIntelligence() {
           let heading = telemetry.heading;
           let speed = 40 + (Math.random() * 20); 
           let newAscent = telemetry.totalAscent;
+          let newDescent = telemetry.totalDescent;
           let newDistance = telemetry.distanceTraveled;
           let roadName = currentRoad;
+          let currentFuelImpact = 0;
           
-          if (currentIndex % 10 === 0 || currentIndex === 1) {
-             fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${currentPt.lat}&longitude=${currentPt.lon}&localityLanguage=en`)
+          if (fuelEstimates.length > currentIndex) {
+            currentFuelImpact = fuelEstimates[currentIndex].fuel_impact || 0;
+          }
+          
+          if (currentIndex % 25 === 0 || currentIndex === 1) {
+             fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${currentPt.lat}&lon=${currentPt.lon}&zoom=10`)
               .then(res => { if (res.ok) return res.json(); throw new Error('Geocoding failed'); })
               .then(data => {
-                 if (data) {
-                    const name = data.locality || data.city || data.principalSubdivision || "Unknown Road";
+                 if (data && data.address) {
+                    const name = data.address.city || data.address.town || data.address.village || data.address.county || "Unknown Road";
                     setCurrentRoad(name);
                     roadName = name;
                  }
@@ -249,9 +284,13 @@ export default function VehicleIntelligence() {
             const eleDiff = altitude - prevPt.altitude;
             
             if (distKmStable * 1000 > 0) {
-              gradient = Math.abs(eleDiff / (distKmStable * 1000)) * 100;
+              gradient = (eleDiff / (distKmStable * 1000)) * 100;
             }
-            if (altitude > immediatePrev.altitude) newAscent += (altitude - immediatePrev.altitude);
+            if (altitude > immediatePrev.altitude) {
+               newAscent += (altitude - immediatePrev.altitude);
+            } else if (altitude < immediatePrev.altitude) {
+               newDescent += (immediatePrev.altitude - altitude);
+            }
             
             heading = calculateHeading(immediatePrev.lat, immediatePrev.lon, currentPt.lat, currentPt.lon);
             
@@ -259,7 +298,7 @@ export default function VehicleIntelligence() {
             if (speed > 80) speed = 80;
           }
           
-          const pointData = { ...currentPt, altitude, gradient, road: roadName, timestamp: new Date().toISOString() };
+          const pointData = { ...currentPt, altitude, gradient, road: roadName, timestamp: new Date().toISOString(), fuelImpact: currentFuelImpact };
           
           setHistory(prev => [...prev, pointData]);
           setTelemetry({
@@ -272,10 +311,18 @@ export default function VehicleIntelligence() {
             floodRisk: getFloodRisk(parseFloat(altitude.toFixed(1))),
             landslideRisk: getLandslideRisk(parseFloat(altitude.toFixed(1)), gradient),
             totalAscent: parseFloat(newAscent.toFixed(1)),
-            distanceTraveled: parseFloat(newDistance.toFixed(2))
+            totalDescent: parseFloat(newDescent.toFixed(1)),
+            distanceTraveled: parseFloat(newDistance.toFixed(2)),
+            fuelImpact: parseFloat(currentFuelImpact.toFixed(1))
           });
           
           setCurrentIndex(prev => prev + 1);
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          console.error("Live predict failed:", errData);
+          alert("Simulation failed: " + (errData.detail || "Server error"));
+          setIsTracking(false);
+          return;
         }
       } catch (e) {
         console.error("AI Inference Failed", e);
@@ -439,13 +486,137 @@ export default function VehicleIntelligence() {
               </span>
             </div>
           </div>
-          <button onClick={downloadPDF} disabled={history.length === 0} className="flex items-center gap-2 px-3 py-1.5 bg-[#1F293D] hover:bg-[#263554] text-white text-xs font-bold rounded-lg transition-all border border-white/10 disabled:opacity-50">
-            Export Log
-          </button>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setShowUserGuide(!showUserGuide)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-[#161D30] hover:bg-[#1F293D] text-[#9CA3AF] hover:text-white text-xs font-bold rounded-lg border border-[#1F293D] transition-colors"
+            >
+              <Info className="w-4 h-4" />
+              {showUserGuide ? 'Hide Guide' : 'User Guide'}
+            </button>
+            <button 
+              onClick={() => setShowMapTutorial(!showMapTutorial)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-[#161D30] hover:bg-[#1F293D] text-[#9CA3AF] hover:text-white text-xs font-bold rounded-lg transition-all border border-white/10"
+            >
+              {showMapTutorial ? <EyeOff className="w-4 h-4" /> : <MapIcon className="w-4 h-4" />}
+              {showMapTutorial ? 'Hide Routing' : 'Routing Tech'}
+            </button>
+            <button 
+              onClick={() => setShowTutorial(!showTutorial)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-[#161D30] hover:bg-[#1F293D] text-[#9CA3AF] hover:text-white text-xs font-bold rounded-lg transition-all border border-white/10"
+            >
+              {showTutorial ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              {showTutorial ? 'Hide AI Math' : 'How AI Works'}
+            </button>
+            <button onClick={downloadPDF} disabled={history.length === 0} className="flex items-center gap-2 px-3 py-1.5 bg-[#1F293D] hover:bg-[#263554] text-white text-xs font-bold rounded-lg transition-all border border-white/10 disabled:opacity-50">
+              Export Log
+            </button>
+          </div>
         </div>
 
+        {/* USER GUIDE */}
+        {showUserGuide && (
+        <div className="glass-panel p-5 rounded-2xl border border-[#1F293D] mb-6 bg-[#0B0F19]">
+          <h3 className="text-white font-bold mb-3 flex items-center gap-2">
+            <Info className="w-4 h-4 text-[#22c55e]" /> How to Use This Page
+          </h3>
+          <ol className="list-decimal list-inside space-y-2 text-sm text-[#9CA3AF]">
+            <li><strong>Configure Vehicle:</strong> Use the Vehicle Profile controls to set the weight class (e.g., Heavy Duty Truck) and Engine Torque limits.</li>
+            <li><strong>Define a Route:</strong> Use the Route Builder to search for a Start and End location, or click directly on the map.</li>
+            <li><strong>Start Simulation:</strong> Click the <strong className="text-[#3b82f6]">Start Telemetry</strong> button.</li>
+            <li><strong>Monitor Live Data:</strong> Watch the simulated dashboard gauges as the vehicle drives the route. The system will flag Torque Limits if the altitude gradient is too steep for the configured vehicle weight.</li>
+          </ol>
+        </div>
+        )}
+
+        {/* MAP & ROUTING ARCHITECTURE */}
+        {showMapTutorial && (
+        <div className="glass-panel p-5 rounded-2xl border border-[#1F293D] mb-6 bg-[#0B0F19]">
+          <h3 className="text-white font-bold mb-3 flex items-center gap-2">
+            <MapIcon className="w-4 h-4 text-[#3b82f6]" /> Map & Routing Architecture
+          </h3>
+          <div className="flex flex-col xl:flex-row gap-6 items-center">
+            {/* Diagram */}
+            <div className="w-full xl:w-1/3 bg-[#161D30] rounded-xl border border-[#1F293D] p-4 flex items-center justify-center relative overflow-hidden h-32">
+              <svg viewBox="0 0 200 100" className="w-full h-full">
+                <rect x="20" y="20" width="40" height="60" rx="4" fill="#1F293D" stroke="#3b82f6" strokeWidth="2" />
+                <text x="40" y="52" fill="white" fontSize="10" textAnchor="middle" fontWeight="bold">OSRM</text>
+                
+                <motion.line 
+                  x1="65" y1="50" x2="135" y2="50" stroke="#22c55e" strokeWidth="2" strokeDasharray="4 4"
+                  animate={{ strokeDashoffset: [0, -20] }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                />
+                
+                <rect x="140" y="20" width="40" height="60" rx="4" fill="#1F293D" stroke="#f97316" strokeWidth="2" />
+                <text x="160" y="47" fill="white" fontSize="10" textAnchor="middle" fontWeight="bold">XGBoost</text>
+                <text x="160" y="60" fill="#f97316" fontSize="8" textAnchor="middle">AI API</text>
+              </svg>
+            </div>
+            
+            <div className="w-full xl:w-2/3 space-y-3">
+               <p className="text-[11px] text-[#9CA3AF] leading-relaxed">
+                 <strong className="text-white">Mapping Engine:</strong> We use <strong className="text-[#3b82f6]">React-Leaflet</strong> over OpenStreetMap tiles for lightweight, open-source GIS rendering. 
+               </p>
+               <p className="text-[11px] text-[#9CA3AF] leading-relaxed">
+                 <strong className="text-white">Routing API:</strong> When you enter a Start/End location, the app pings the <strong className="text-[#3b82f6]">OSRM (Open Source Routing Machine) API</strong>. OSRM calculates the fastest driving route and returns an encoded polyline of Lat/Lon coordinates.
+               </p>
+               <p className="text-[11px] text-[#9CA3AF] leading-relaxed">
+                 <strong className="text-white">Data Pipeline:</strong> We sample points along this OSRM route and stream them to our Python FastAPI backend. The <strong className="text-[#f97316]">XGBoost Model</strong> predicts the altitude for each point, allowing the frontend to calculate the Gradient and simulate live Telemetry.
+               </p>
+            </div>
+          </div>
+        </div>
+        )}
+
+        {/* HOW IT WORKS (LAYMAN'S GUIDE) */}
+        {showTutorial && (
+        <div className="glass-panel p-5 rounded-2xl border border-[#1F293D] mb-6 bg-[#0B0F19]">
+          <h3 className="text-white font-bold mb-3 flex items-center gap-2">
+            <Car className="w-4 h-4 text-[#f97316]" /> How it Works (AI & Physics Model)
+          </h3>
+          
+          <div className="flex flex-col xl:flex-row gap-6 items-center">
+            {/* Animated SVG Pictorial */}
+            <div className="w-full xl:w-1/3 bg-[#161D30] rounded-xl border border-[#1F293D] p-4 flex items-center justify-center relative overflow-hidden h-32">
+              <svg viewBox="0 0 200 100" className="w-full h-full">
+                <path d="M 10 90 L 100 90 L 190 20" fill="none" stroke="#1F293D" strokeWidth="4" />
+                
+                {/* Truck */}
+                <motion.g animate={{ x: [0, 90, 180], y: [0, 0, -70], rotate: [0, 0, -38] }} transition={{ duration: 4, repeat: Infinity, ease: "linear" }}>
+                  <rect x="10" y="75" width="25" height="12" fill="#f97316" rx="2" />
+                  <rect x="35" y="77" width="10" height="10" fill="#f97316" rx="1" />
+                  <circle cx="15" cy="88" r="3" fill="white" />
+                  <circle cx="30" cy="88" r="3" fill="white" />
+                  <circle cx="42" cy="88" r="3" fill="white" />
+                </motion.g>
+                
+                {/* Engine Temp Warning */}
+                <motion.g animate={{ opacity: [0, 0, 1] }} transition={{ duration: 4, repeat: Infinity, ease: "linear" }}>
+                  <path d="M 170 5 L 180 20 L 160 20 Z" fill="#ef4444" />
+                  <text x="168" y="17" fill="white" fontSize="8" fontWeight="bold">!</text>
+                  <text x="120" y="15" fill="#ef4444" fontSize="10" fontWeight="bold">Torque Limit</text>
+                </motion.g>
+              </svg>
+            </div>
+            
+            <div className="w-full xl:w-2/3 space-y-3">
+               <p className="text-[11px] text-[#9CA3AF] leading-relaxed">
+                 <strong className="text-white">The Math (Powertrain Simulation):</strong> A heavy truck driving on flat ground requires standard torque. But when the AI detects a steep altitude spike ahead, it calculates the massive gravitational force pulling the vehicle backward using Grade Resistance:
+               </p>
+               <div className="bg-[#161D30] p-2 rounded border border-[#1F293D] font-mono text-[10px] text-[#f97316] space-y-1">
+                 <p>Grade Resistance (GR) = Vehicle Mass × Gravity × sin(Gradient Angle)</p>
+                 <p className="text-[#9CA3AF]">Required Engine Torque (T) = (GR + Rolling Resistance) × Tire Radius</p>
+               </div>
+               <p className="text-[11px] text-[#9CA3AF] leading-relaxed">
+                 <strong className="text-white">Why we take it:</strong> We mathematically combine the XGBoost slope prediction with the vehicle's mass and engine power. This proves whether a specific truck physically has enough torque to climb a mountain pass, preventing fleet managers from routing heavy cargo into dangerous stall-out zones.
+               </p>
+            </div>
+          </div>
+        </div>
+        )}
+
         <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div className="glass-panel p-5 rounded-xl border border-[#1F293D] relative overflow-hidden">
               <div className="absolute top-0 right-0 p-2 opacity-10"><Zap className="w-16 h-16" /></div>
               <p className="text-[10px] text-[#9CA3AF] font-bold uppercase tracking-widest mb-1 flex items-center gap-1">Speed</p>
@@ -463,11 +634,39 @@ export default function VehicleIntelligence() {
                 <span className="text-sm font-bold text-[#3b82f6]">{getCardinalDirection(telemetry.heading)}</span>
               </div>
             </div>
+            
+            <div className="glass-panel p-5 rounded-xl border border-rose-500/20 bg-rose-500/5 relative overflow-hidden overflow-visible">
+              <div className="absolute top-0 right-0 p-2 opacity-10"><Fuel className="w-16 h-16 text-rose-500" /></div>
+              <div className="flex items-center gap-2 mb-1 relative group">
+                <p className="text-[10px] text-rose-400 font-bold uppercase tracking-widest flex items-center gap-1">Fuel Loss % (Instant)</p>
+                <Info className="w-3 h-3 text-rose-400/70 cursor-help" />
+                <div className="absolute left-0 bottom-full mb-2 w-64 p-3 bg-[#1F293D] text-[#E5E7EB] text-xs rounded-lg shadow-xl border border-[#374151] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                  <p className="font-bold mb-1 text-rose-400">How is this calculated?</p>
+                  <p className="mb-2">Calculated dynamically using XGBoost terrain gradient predictions.</p>
+                  <div className="bg-black/50 p-2 rounded border border-white/5 font-mono text-[10px]">
+                    Example: A +5% uphill gradient requires ~7.5% more fuel/battery compared to driving on a perfectly flat road.
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-3xl font-black text-rose-400 tabular-nums">{telemetry.fuelImpact > 0 ? '+' : ''}{telemetry.fuelImpact}</span>
+                <span className="text-sm font-bold text-rose-500/70">%</span>
+              </div>
+              <div className="mt-2 pt-2 border-t border-rose-500/20 flex items-center justify-between">
+                <span className="text-[10px] text-rose-500/80 font-bold uppercase tracking-wider">Est. Total Route Loss</span>
+                <span className="text-xs font-black text-rose-400 bg-rose-500/20 px-2 py-0.5 rounded border border-rose-500/30 shadow-sm">
+                  {totalFuelLoss > 0 ? '+' : ''}{totalFuelLoss.toFixed(1)}%
+                </span>
+              </div>
+            </div>
           </div>
 
           <div className="glass-panel p-6 rounded-xl border border-[#1F293D] bg-gradient-to-br from-[#0B0F19] to-[#161D30]">
-            <h4 className="text-[10px] text-[#3b82f6] font-bold uppercase tracking-widest mb-4 flex items-center gap-1">
-              <Activity className="w-3 h-3" /> Live Terrain Prediction
+            <h4 className="text-[10px] text-[#3b82f6] font-bold uppercase tracking-widest mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-1">
+                <Activity className="w-3 h-3" /> Live Terrain Prediction
+              </div>
+              <span className="text-[#3b82f6]/60 bg-[#3b82f6]/10 px-2 py-0.5 rounded-full border border-[#3b82f6]/20">AT THIS POINT</span>
             </h4>
             
             <div className="grid grid-cols-2 gap-y-6 gap-x-4">
@@ -517,7 +716,7 @@ export default function VehicleIntelligence() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div className="glass-panel p-4 rounded-xl border border-[#1F293D]">
               <p className="text-[10px] text-[#9CA3AF] font-bold uppercase tracking-widest mb-1 flex items-center gap-1"><Navigation className="w-3 h-3 text-[#3b82f6]" /> Dist. Traveled</p>
               <p className="text-xl font-black text-white">{telemetry.distanceTraveled} <span className="text-xs font-normal text-[#9CA3AF]">km</span></p>
@@ -526,16 +725,20 @@ export default function VehicleIntelligence() {
               <p className="text-[10px] text-[#9CA3AF] font-bold uppercase tracking-widest mb-1 flex items-center gap-1"><TrendingUp className="w-3 h-3 text-green-400" /> Elevation Gain</p>
               <p className="text-xl font-black text-white">+{telemetry.totalAscent} <span className="text-xs font-normal text-[#9CA3AF]">m</span></p>
             </div>
+            <div className="glass-panel p-4 rounded-xl border border-[#1F293D]">
+              <p className="text-[10px] text-[#9CA3AF] font-bold uppercase tracking-widest mb-1 flex items-center gap-1"><TrendingDown className="w-3 h-3 text-blue-400" /> Elevation Loss</p>
+              <p className="text-xl font-black text-white">-{telemetry.totalDescent} <span className="text-xs font-normal text-[#9CA3AF]">m</span></p>
+            </div>
           </div>
 
           <div className="glass-panel p-4 rounded-xl border border-[#1F293D]">
              <h4 className="text-[10px] text-[#9CA3AF] font-bold uppercase tracking-widest mb-3">Raw Payload Feed</h4>
              <div className="bg-black/50 border border-white/5 rounded-lg p-3 h-32 overflow-y-auto font-mono text-[10px] text-[#9CA3AF] space-y-1 custom-scrollbar flex flex-col-reverse">
                 {history.slice(-10).map((pt, i) => (
-                  <div key={i} className="flex justify-between border-b border-white/5 pb-1">
-                    <span className="text-[#3b82f6]">{new Date(pt.timestamp).toLocaleTimeString()}</span>
-                    <span>{pt.road ? pt.road.substring(0, 20) : 'Driving...'}</span>
-                    <span className="text-white">A:{pt.altitude.toFixed(0)}m G:{pt.gradient.toFixed(1)}%</span>
+                  <div key={i} className="flex justify-between border-b border-white/5 pb-1 gap-2">
+                    <span className="text-[#3b82f6] whitespace-nowrap">{new Date(pt.timestamp).toLocaleTimeString()}</span>
+                    <span className="truncate flex-1">{pt.road ? pt.road : 'Driving...'}</span>
+                    <span className="text-white whitespace-nowrap">A:{pt.altitude.toFixed(0)}m G:{pt.gradient.toFixed(1)}% F:{pt.fuelImpact ? pt.fuelImpact.toFixed(1) : '0.0'}%</span>
                   </div>
                 ))}
                 {history.length === 0 && <div className="text-center text-white/30 italic mt-10">Awaiting simulation start...</div>}
@@ -567,8 +770,21 @@ export default function VehicleIntelligence() {
                   <p className="text-[10px] text-[#9CA3AF] uppercase font-bold tracking-wider mb-1">Steep Events</p>
                   <p className="text-xl font-black text-orange-500">{history.filter(p => p.gradient > 6).length}</p>
                 </div>
-                <div className="bg-[#161D30] border border-[#1F293D] p-4 rounded-xl text-center">
-                  <p className="text-[10px] text-[#9CA3AF] uppercase font-bold tracking-wider mb-1">Max Gradient</p>
+                <div className="bg-[#161D30] border border-[#1F293D] p-4 rounded-xl text-center relative group">
+                  <div className="flex items-center justify-center gap-1 mb-1">
+                    <p className="text-[10px] text-[#9CA3AF] uppercase font-bold tracking-wider">Max Gradient</p>
+                    <Info className="w-3 h-3 text-[#9CA3AF] cursor-help" />
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-[#111827] border border-[#1F293D] rounded-lg shadow-2xl text-xs text-gray-300 opacity-0 group-hover:opacity-100 pointer-events-none transition-all z-50 text-left">
+                      <strong className="text-[#ef4444] block mb-2">Max Gradient (Steepness)</strong>
+                      <p className="mb-2">The steepest single section of the route.</p>
+                      <svg viewBox="0 0 200 80" className="w-full h-16 bg-[#0B0F19] rounded border border-[#1F293D] mt-2">
+                        <path d="M 10 70 Q 40 70, 70 50 T 130 20 T 190 60" stroke="#9CA3AF" strokeWidth="2" fill="none" />
+                        <line x1="80" y1="46" x2="110" y2="28" stroke="#ef4444" strokeWidth="4" />
+                        <circle cx="95" cy="37" r="15" stroke="#ef4444" strokeWidth="1" fill="none" strokeDasharray="2 2" />
+                        <text x="95" y="15" fill="#ef4444" fontSize="10" textAnchor="middle">Steepest Peak</text>
+                      </svg>
+                    </div>
+                  </div>
                   <p className="text-xl font-black text-red-500">{Math.max(0, ...history.map(p => p.gradient)).toFixed(1)}%</p>
                 </div>
                 <div className="bg-[#161D30] border border-[#1F293D] p-4 rounded-xl text-center">
