@@ -4,7 +4,7 @@ from typing import List, Optional
 import os
 from openai import OpenAI
 
-chat_router = APIRouter(prefix="/api/chat", tags=["Chat Assistant"])
+chat_router = APIRouter(prefix="/api", tags=["Chat Assistant"])
 
 class ChatMessage(BaseModel):
     role: str
@@ -20,7 +20,7 @@ class ChatResponse(BaseModel):
 
 from fastapi.responses import StreamingResponse
 
-@chat_router.post("")
+@chat_router.post("/chat")
 def chat_with_assistant(request: ChatRequest):
     api_key = os.environ.get("NVIDIA_API_KEY")
     
