@@ -26,6 +26,7 @@ import LandslideRiskAnalysis from './pages/LandslideRiskAnalysis';
 import ModelFeedback from './pages/ModelFeedback';
 import VehicleRouteIntelligence from './pages/VehicleRouteIntelligence';
 import SystemArchitecture from './pages/SystemArchitecture';
+import Assistant from './pages/Assistant';
 
 import FuelEfficiencyAnalysis from './pages/FuelEfficiencyAnalysis';
 
@@ -51,6 +52,7 @@ function App() {
             <Route path="/features" element={<FeatureEngineering />} />
             <Route path="/train" element={<TrainModel />} />
             <Route path="/evaluation" element={<ModelEvaluation />} />
+            <Route path="/assistant" element={<Assistant />} />
             <Route path="/live-prediction" element={<LivePrediction />} />
             <Route path="/batch-prediction" element={<BatchPrediction />} />
             <Route path="/fuel-efficiency" element={<FuelEfficiencyAnalysis />} />

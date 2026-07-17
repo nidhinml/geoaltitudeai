@@ -28,7 +28,8 @@ import {
   Fuel,
   RefreshCw,
   Navigation,
-  Layers
+  Layers,
+  Sparkles
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import GlobalPageGuide from '../components/GlobalPageGuide';
@@ -47,6 +48,7 @@ const sidebarItems: SidebarItem[] = [
   { name: 'Feature Engineering', path: '/features', icon: Cpu },
   { name: 'Train Model', path: '/train', icon: Play },
   { name: 'Model Evaluation', path: '/evaluation', icon: LineChart },
+  { name: '✨ Geo Ai', path: '/assistant', icon: Sparkles },
   { name: '🌄 Terrain Intelligence', path: '/terrain', icon: Mountain },
   { name: '📈 Elevation Profile', path: '/elevation-profile', icon: TrendingUp },
   { name: '📐 Gradient Analysis', path: '/gradient', icon: Ruler },

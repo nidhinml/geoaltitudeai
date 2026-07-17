@@ -2,6 +2,10 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, R
 from fastapi.responses import Response, FileResponse
 import tempfile
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any
@@ -45,10 +49,12 @@ from explainability import explain_router
 from fuel_analysis import fuel_router
 from model_feedback import feedback_router
 from route_intelligence import route_router
+from chat_assistant import chat_router
 app.include_router(explain_router)
 app.include_router(fuel_router)
 app.include_router(feedback_router)
 app.include_router(route_router)
+app.include_router(chat_router)
 
 # Configure CORS for Vite React frontend
 app.add_middleware(

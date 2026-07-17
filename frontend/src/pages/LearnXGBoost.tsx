@@ -98,6 +98,26 @@ const SecCleaning = () => (
       <p className="text-[11px] text-[#9CA3AF] mb-8 leading-relaxed">
          <strong className="text-white">What it means:</strong> "Garbage in, garbage out." If we teach the AI using corrupted GPS data, it will make corrupted predictions. We use statistical math (like Z-Scores) to automatically find and delete impossible data points before the AI ever sees them.
       </p>
+
+      <div className="space-y-6 text-[#D1D5DB] text-sm leading-relaxed mb-12 border-l-2 border-[#f59e0b] pl-6 bg-[#0B0F19]/50 p-6 rounded-r-xl">
+        <div>
+          <h4 className="font-bold text-white mb-1">1. Type Coercion & No-Fix Handling</h4>
+          <p>Forces all columns to numerical floats. If a GPS device loses satellite connection and returns exactly <code className="text-[#f59e0b] bg-[#161D30] px-1.5 py-0.5 rounded">0</code> altitude, the system converts them to <code className="text-red-400 bg-[#161D30] px-1.5 py-0.5 rounded">NaN</code> (Missing) so they don't corrupt the training process as if they were sea level.</p>
+        </div>
+        <div>
+          <h4 className="font-bold text-white mb-1">2. Missing Value & Duplicate Handling</h4>
+          <p>Missing altitudes are either dropped entirely, or filled using <strong className="text-white">Spatial KNN Imputation</strong> (averaging the altitude of the closest geographic points). The system also computes hash-checks to delete exact duplicate rows caused by stationary vehicles.</p>
+        </div>
+        <div>
+          <h4 className="font-bold text-white mb-1">3. Mathematical Geographic Bounds</h4>
+          <p>Runs hard filters on the geometry: Latitude must be strictly between <code className="text-[#3b82f6] bg-[#161D30] px-1.5 py-0.5 rounded">-90.0</code> and <code className="text-[#3b82f6] bg-[#161D30] px-1.5 py-0.5 rounded">+90.0</code>. Longitude between <code className="text-[#3b82f6] bg-[#161D30] px-1.5 py-0.5 rounded">-180.0</code> and <code className="text-[#3b82f6] bg-[#161D30] px-1.5 py-0.5 rounded">+180.0</code>. Anything outside this is physically impossible and deleted.</p>
+        </div>
+        <div>
+          <h4 className="font-bold text-white mb-1">4. Z-Score Spatial Outlier Removal</h4>
+          <p>The system calculates the Mean and Standard Deviation of all altitudes. It computes the <strong className="text-orange-400">Z-Score</strong> for every row. If a point exceeds a threshold (e.g., <code className="text-orange-400 bg-[#161D30] px-1.5 py-0.5 rounded">3.0σ</code>), it is classified as a severe GPS anomaly (like a sudden spike to 50,000m) and deleted.</p>
+        </div>
+      </div>
+
       <div className="flex items-center justify-between gap-4">
       {[
         { label: "Raw GPS Data", color: "from-gray-600 to-gray-800" },

@@ -100,6 +100,26 @@ const GUIDE_CONTENT: Record<string, { title: string, guide?: React.ReactNode, te
         <strong className="text-white">Model Safety:</strong> Garbage In, Garbage Out (GIGO). If an XGBoost model is trained on GPS glitches (e.g. a truck moving at 800 km/h), its decision boundaries will become corrupted, leading to wild inaccuracies in live predictions. Cleaning ensures robust inference.
       </p>
     )
+  },
+  '/assistant': {
+    title: 'Geo Ai Core Intelligence',
+    guide: (
+      <ol className="list-decimal pl-5 text-sm text-[#9CA3AF] space-y-2">
+        <li><strong className="text-white">Ask Questions:</strong> Ask Geo Ai any technical or non-technical question regarding the platform, such as "How do you calculate Flood Risk?" or "Explain XGBoost feature engineering."</li>
+        <li><strong className="text-white">Clear Context:</strong> Use the "Clear Chat" button in the header to wipe the conversation history and start a fresh context window.</li>
+        <li><strong className="text-white">Real-Time Processing:</strong> The UI instantly streams the AI's response using Server-Sent Events (SSE) so you don't have to wait for large answers to finish generating.</li>
+      </ol>
+    ),
+    tech: (
+      <p className="text-sm text-[#9CA3AF] leading-relaxed">
+        <strong className="text-white">Architecture & Streaming:</strong> Geo Ai uses the <strong className="text-white">NVIDIA NIM</strong> infrastructure to run the massive <strong className="text-white">Llama 3.1 8B Instruct</strong> model. The React frontend communicates with the FastAPI backend, which securely holds the NVIDIA API Key. To achieve instantaneous response times (low TTFT), the backend utilizes FastAPI's <code className="text-[#f59e0b] bg-[#f59e0b]/10 px-1 rounded text-[10px]">StreamingResponse</code> with <code className="text-[#f59e0b] bg-[#f59e0b]/10 px-1 rounded text-[10px]">text/event-stream</code> MIME types, bypassing all proxy buffers.
+      </p>
+    ),
+    ai: (
+      <p className="text-sm text-[#9CA3AF] leading-relaxed">
+        <strong className="text-white">Contextual Fine-Tuning:</strong> Geo Ai does not just use base Llama 3.1 weights. It is dynamically "fine-tuned" on startup via a massive <strong className="text-white">Knowledge Base file (geo_ai_knowledge.md)</strong>. This Markdown file contains exact physics formulas (Haversine, Gradient Impacts), Risk assessment thresholds (Flood & Landslide), and the complete pipeline architecture. This file is injected into the AI's hidden System Prompt, forcing it to act strictly as the internal intelligence for GeoAltitude AI rather than a generic chatbot.
+      </p>
+    )
   }
 };
 
