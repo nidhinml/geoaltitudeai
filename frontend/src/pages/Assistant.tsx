@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Bot, User, Sparkles, AlertCircle, Trash2 } from 'lucide-react';
+import { Send, Bot, User, Sparkles, AlertCircle, Trash2, Settings, ChevronDown, ChevronUp, Info } from 'lucide-react';
 
 interface Message {
   role: 'user' | 'assistant' | 'system';
@@ -18,6 +18,17 @@ export default function Assistant() {
   const [messages, setMessages] = useState<Message[]>([initialMessage]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Model Parameters State
+  const [temperature, setTemperature] = useState(0.5);
+  const [topP, setTopP] = useState(1.0);
+  const [maxTokens, setMaxTokens] = useState(1024);
+  const [frequencyPenalty, setFrequencyPenalty] = useState(0.0);
+  const [presencePenalty, setPresencePenalty] = useState(0.0);
+  const [seed, setSeed] = useState('');
+  const [showSettings, setShowSettings] = useState(false);
+  const [activeInfo, setActiveInfo] = useState<string | null>(null);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -43,7 +54,13 @@ export default function Assistant() {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          messages: [...messages, userMessage].filter(m => m.role !== 'system')
+          messages: [...messages, userMessage].filter(m => m.role !== 'system'),
+          temperature,
+          top_p: topP,
+          max_tokens: maxTokens,
+          frequency_penalty: frequencyPenalty,
+          presence_penalty: presencePenalty,
+          ...(seed ? { seed: parseInt(seed) } : {})
         })
       });
 
@@ -154,14 +171,198 @@ export default function Assistant() {
           </div>
         </div>
         
-        <button
-          onClick={clearChat}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-all text-xs font-bold uppercase tracking-wider"
-          title="Clear Conversation"
-        >
-          <Trash2 className="w-4 h-4" /> Clear Chat
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowSettings(!showSettings)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all text-xs font-bold uppercase tracking-wider ${
+              showSettings 
+                ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-300' 
+                : 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/20'
+            }`}
+            title="Model Settings"
+          >
+            <Settings className="w-4 h-4" /> Settings {showSettings ? <ChevronUp className="w-4 h-4"/> : <ChevronDown className="w-4 h-4"/>}
+          </button>
+          <button
+            onClick={clearChat}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-all text-xs font-bold uppercase tracking-wider"
+            title="Clear Conversation"
+          >
+            <Trash2 className="w-4 h-4" /> Clear Chat
+          </button>
+        </div>
       </div>
+
+      {/* Settings Panel */}
+      <AnimatePresence>
+        {showSettings && (
+          <motion.div
+            initial={{ height: 0, opacity: 0, overflow: 'hidden' }}
+            animate={{ height: 'auto', opacity: 1, transitionEnd: { overflow: 'visible' } }}
+            exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
+            className="relative z-50 px-2"
+          >
+            <div className="p-5 glass-panel border border-indigo-500/30 rounded-2xl mb-4 shadow-[0_8px_32px_rgba(0,0,0,0.4)] backdrop-blur-xl grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              
+              {/* Temperature */}
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs font-semibold text-indigo-300 uppercase items-center">
+                  <div className="flex items-center gap-1.5 cursor-pointer hover:text-indigo-200 transition-colors" onClick={() => setActiveInfo(activeInfo === 'temperature' ? null : 'temperature')}>
+                    <span>Temperature</span>
+                    <Info className="w-3.5 h-3.5" />
+                  </div>
+                  <span className="text-white bg-indigo-500/20 px-1.5 py-0.5 rounded border border-indigo-500/30">{temperature.toFixed(1)}</span>
+                </div>
+                <input type="range" min="0.1" max="1.0" step="0.1" value={temperature} onChange={(e) => setTemperature(parseFloat(e.target.value))} className="w-full accent-indigo-500 cursor-pointer" />
+                <AnimatePresence>
+                  {activeInfo === 'temperature' && (
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                      <div className="mt-1 p-2.5 bg-[#161D30]/90 rounded-lg text-[10px] text-gray-300 border border-indigo-500/20 shadow-inner">
+                        <div className="text-indigo-400 font-bold mb-1">Why use this?</div>
+                        <p className="mb-2 text-gray-400">Controls the randomness and creativity of the AI's responses.</p>
+                        <div className="text-indigo-400 font-bold mb-1">Current Impact:</div>
+                        <p className="text-white bg-indigo-500/10 p-1.5 rounded border border-indigo-500/20">
+                          {temperature < 0.4 ? "Highly focused and deterministic. Best for math and facts." : temperature > 0.7 ? "Highly creative and random. Good for brainstorming." : "Balanced creativity and focus."}
+                        </p>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* Top P */}
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs font-semibold text-indigo-300 uppercase items-center">
+                  <div className="flex items-center gap-1.5 cursor-pointer hover:text-indigo-200 transition-colors" onClick={() => setActiveInfo(activeInfo === 'topP' ? null : 'topP')}>
+                    <span>Top P</span>
+                    <Info className="w-3.5 h-3.5" />
+                  </div>
+                  <span className="text-white bg-indigo-500/20 px-1.5 py-0.5 rounded border border-indigo-500/30">{topP.toFixed(1)}</span>
+                </div>
+                <input type="range" min="0.1" max="1.0" step="0.1" value={topP} onChange={(e) => setTopP(parseFloat(e.target.value))} className="w-full accent-indigo-500 cursor-pointer" />
+                <AnimatePresence>
+                  {activeInfo === 'topP' && (
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                      <div className="mt-1 p-2.5 bg-[#161D30]/90 rounded-lg text-[10px] text-gray-300 border border-indigo-500/20 shadow-inner">
+                        <div className="text-indigo-400 font-bold mb-1">Why use this?</div>
+                        <p className="mb-2 text-gray-400">Nucleus sampling. Filters out lower-probability words before selecting them.</p>
+                        <div className="text-indigo-400 font-bold mb-1">Current Impact:</div>
+                        <p className="text-white bg-indigo-500/10 p-1.5 rounded border border-indigo-500/20">
+                          {topP < 0.5 ? "Strict sampling. Only the most likely words are chosen." : topP > 0.9 ? "Full vocabulary available. More varied wording." : "Moderate nucleus sampling."}
+                        </p>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* Max Tokens */}
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs font-semibold text-indigo-300 uppercase items-center">
+                  <div className="flex items-center gap-1.5 cursor-pointer hover:text-indigo-200 transition-colors" onClick={() => setActiveInfo(activeInfo === 'maxTokens' ? null : 'maxTokens')}>
+                    <span>Max Tokens</span>
+                    <Info className="w-3.5 h-3.5" />
+                  </div>
+                  <span className="text-white bg-indigo-500/20 px-1.5 py-0.5 rounded border border-indigo-500/30">{maxTokens}</span>
+                </div>
+                <input type="range" min="256" max="4096" step="256" value={maxTokens} onChange={(e) => setMaxTokens(parseInt(e.target.value))} className="w-full accent-indigo-500 cursor-pointer" />
+                <AnimatePresence>
+                  {activeInfo === 'maxTokens' && (
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                      <div className="mt-1 p-2.5 bg-[#161D30]/90 rounded-lg text-[10px] text-gray-300 border border-indigo-500/20 shadow-inner">
+                        <div className="text-indigo-400 font-bold mb-1">Why use this?</div>
+                        <p className="mb-2 text-gray-400">Sets the hard limit on how long the AI's response can be.</p>
+                        <div className="text-indigo-400 font-bold mb-1">Current Impact:</div>
+                        <p className="text-white bg-indigo-500/10 p-1.5 rounded border border-indigo-500/20">
+                          {maxTokens < 1000 ? "AI will provide short, concise responses." : maxTokens > 2000 ? "AI can provide very long, detailed explanations." : "AI will provide medium length responses."}
+                        </p>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* Frequency Penalty */}
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs font-semibold text-indigo-300 uppercase items-center">
+                  <div className="flex items-center gap-1.5 cursor-pointer hover:text-indigo-200 transition-colors" onClick={() => setActiveInfo(activeInfo === 'frequency' ? null : 'frequency')}>
+                    <span>Freq. Penalty</span>
+                    <Info className="w-3.5 h-3.5" />
+                  </div>
+                  <span className="text-white bg-indigo-500/20 px-1.5 py-0.5 rounded border border-indigo-500/30">{frequencyPenalty.toFixed(1)}</span>
+                </div>
+                <input type="range" min="-2.0" max="2.0" step="0.1" value={frequencyPenalty} onChange={(e) => setFrequencyPenalty(parseFloat(e.target.value))} className="w-full accent-indigo-500 cursor-pointer" />
+                <AnimatePresence>
+                  {activeInfo === 'frequency' && (
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                      <div className="mt-1 p-2.5 bg-[#161D30]/90 rounded-lg text-[10px] text-gray-300 border border-indigo-500/20 shadow-inner">
+                        <div className="text-indigo-400 font-bold mb-1">Why use this?</div>
+                        <p className="mb-2 text-gray-400">Penalizes the AI for repeating the exact same phrases and words.</p>
+                        <div className="text-indigo-400 font-bold mb-1">Current Impact:</div>
+                        <p className="text-white bg-indigo-500/10 p-1.5 rounded border border-indigo-500/20">
+                          {frequencyPenalty < 0 ? "AI is encouraged to repeat itself." : frequencyPenalty > 0 ? "AI will actively avoid repeating exact phrases." : "No penalty applied to repetition."}
+                        </p>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* Presence Penalty */}
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs font-semibold text-indigo-300 uppercase items-center">
+                  <div className="flex items-center gap-1.5 cursor-pointer hover:text-indigo-200 transition-colors" onClick={() => setActiveInfo(activeInfo === 'presence' ? null : 'presence')}>
+                    <span>Pres. Penalty</span>
+                    <Info className="w-3.5 h-3.5" />
+                  </div>
+                  <span className="text-white bg-indigo-500/20 px-1.5 py-0.5 rounded border border-indigo-500/30">{presencePenalty.toFixed(1)}</span>
+                </div>
+                <input type="range" min="-2.0" max="2.0" step="0.1" value={presencePenalty} onChange={(e) => setPresencePenalty(parseFloat(e.target.value))} className="w-full accent-indigo-500 cursor-pointer" />
+                <AnimatePresence>
+                  {activeInfo === 'presence' && (
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                      <div className="mt-1 p-2.5 bg-[#161D30]/90 rounded-lg text-[10px] text-gray-300 border border-indigo-500/20 shadow-inner">
+                        <div className="text-indigo-400 font-bold mb-1">Why use this?</div>
+                        <p className="mb-2 text-gray-400">Penalizes the AI for talking about the same topics repeatedly.</p>
+                        <div className="text-indigo-400 font-bold mb-1">Current Impact:</div>
+                        <p className="text-white bg-indigo-500/10 p-1.5 rounded border border-indigo-500/20">
+                          {presencePenalty < 0 ? "AI will stick closely to the current topic." : presencePenalty > 0 ? "AI will frequently introduce new topics." : "No topic penalty applied."}
+                        </p>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* Seed */}
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs font-semibold text-indigo-300 uppercase items-center">
+                  <div className="flex items-center gap-1.5 cursor-pointer hover:text-indigo-200 transition-colors" onClick={() => setActiveInfo(activeInfo === 'seed' ? null : 'seed')}>
+                    <span>Seed (Reproducibility)</span>
+                    <Info className="w-3.5 h-3.5" />
+                  </div>
+                </div>
+                <input type="number" placeholder="Random (e.g. 42)" value={seed} onChange={(e) => setSeed(e.target.value)} className="w-full bg-[#0B0F19]/50 border border-[#374151] rounded-lg px-3 py-1.5 text-white focus:outline-none focus:border-indigo-500/50 text-sm placeholder-gray-500 mt-0.5" />
+                <AnimatePresence>
+                  {activeInfo === 'seed' && (
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                      <div className="mt-1 p-2.5 bg-[#161D30]/90 rounded-lg text-[10px] text-gray-300 border border-indigo-500/20 shadow-inner">
+                        <div className="text-indigo-400 font-bold mb-1">Why use this?</div>
+                        <p className="mb-2 text-gray-400">Forces the AI to generate the exact same response every time for the same prompt. Essential for technical validation.</p>
+                        <div className="text-indigo-400 font-bold mb-1">Current Impact:</div>
+                        <p className="text-white bg-indigo-500/10 p-1.5 rounded border border-indigo-500/20">
+                          {seed ? `Responses are locked to seed ${seed}.` : "Responses are non-deterministic."}
+                        </p>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Main Chat Window */}
       <div className="flex-1 glass-panel border border-[#1F293D]/80 rounded-3xl overflow-hidden flex flex-col relative shadow-[0_8px_32px_rgba(0,0,0,0.4)] z-10 backdrop-blur-xl">
